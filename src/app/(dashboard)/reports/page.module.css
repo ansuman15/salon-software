@@ -1,0 +1,182 @@
+.container {
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 50vh;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--text-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Revenue Grid */
+.revenueGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4);
+}
+
+.revenueCard {
+    background: linear-gradient(135deg, var(--accent-champagne-light) 0%, var(--accent-rose-light) 100%);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.revenueLabel {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.revenueValue {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+}
+
+/* Stats Grid */
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+}
+
+.statCard {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.statValue {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+}
+
+.statLabel {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-top: var(--space-1);
+}
+
+/* Charts Row */
+.chartsRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+}
+
+.chartCard {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-card);
+}
+
+.chartCard h3 {
+    margin: 0 0 var(--space-4);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+}
+
+.emptyChart {
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--space-6);
+    font-style: italic;
+}
+
+.chartList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.chartItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.chartRank {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--text-secondary);
+}
+
+.chartInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.chartName {
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+}
+
+.chartMeta {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.chartValue {
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+}
+
+@media (max-width: 1024px) {
+    .revenueGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .chartsRow {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: var(--space-4);
+    }
+
+    .statsGrid {
+        grid-template-columns: 1fr;
+    }
+}

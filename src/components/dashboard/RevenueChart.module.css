@@ -1,0 +1,108 @@
+.container {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition-normal);
+    border: 1px solid transparent;
+}
+
+.container:hover {
+    border-color: var(--accent-champagne);
+    box-shadow: var(--shadow-lg);
+}
+
+.title {
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin: 0 0 var(--space-4);
+}
+
+.metrics {
+    display: flex;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.metric {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    cursor: default;
+}
+
+.metric:hover {
+    background: var(--accent-champagne-light);
+}
+
+.metricValue {
+    font-size: var(--text-lg);
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+}
+
+.metricLabel {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.bars {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.barGroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.barLabel {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+
+.barTrack {
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    transition: all var(--transition-fast);
+}
+
+.barGroup:hover .barTrack {
+    height: 10px;
+}
+
+.barFill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-rose) 0%, var(--accent-champagne) 100%);
+    border-radius: var(--radius-full);
+    transition: all var(--transition-slow);
+    min-width: 4px;
+}
+
+.barFill.week {
+    background: linear-gradient(90deg, var(--accent-champagne) 0%, var(--accent-lavender) 100%);
+}
+
+.barFill.month {
+    background: linear-gradient(90deg, var(--accent-lavender) 0%, var(--accent-mint) 100%);
+}
+
+.emptyNote {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    text-align: center;
+    margin: var(--space-4) 0 0;
+    font-style: italic;
+}

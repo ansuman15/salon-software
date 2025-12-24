@@ -1,0 +1,215 @@
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-6);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    min-height: 72px;
+}
+
+.titleSection {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.subtitle {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+/* Search */
+.searchWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.searchWrapper svg {
+    position: absolute;
+    left: var(--space-3);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.searchInput {
+    width: 220px;
+    padding: var(--space-2) var(--space-4);
+    padding-left: 40px;
+    font-family: var(--font-primary);
+    font-size: var(--text-sm);
+    background: var(--bg-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.searchInput:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-light);
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: var(--text-primary);
+    background: var(--bg-card);
+    box-shadow: 0 0 0 3px rgba(45, 40, 38, 0.1);
+}
+
+.searchInput::placeholder {
+    color: var(--text-muted);
+}
+
+/* Notification */
+.notificationWrapper {
+    position: relative;
+}
+
+.notificationBtn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--bg-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.notificationBtn:hover {
+    background: var(--accent-champagne-light);
+    border-color: var(--accent-champagne);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.notificationBtn:active {
+    transform: translateY(0);
+}
+
+.notificationBadge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    background: var(--accent-rose);
+    border-radius: 50%;
+    border: 2px solid var(--bg-card);
+}
+
+.notificationDropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.notificationHeader {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-light);
+    font-weight: var(--font-semibold);
+    font-size: var(--text-sm);
+}
+
+.notificationEmpty {
+    padding: var(--space-6) var(--space-4);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+
+.notificationEmpty p {
+    margin: 0;
+}
+
+/* User Section */
+.userSection {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+}
+
+.userSection:hover {
+    background: var(--accent-champagne-light);
+    border-color: var(--accent-champagne);
+}
+
+.userInfo {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+}
+
+.userName {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.userRole {
+    font-size: var(--text-xs);
+    color: var(--accent-rose);
+    text-transform: capitalize;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    background: linear-gradient(135deg, var(--accent-champagne) 0%, var(--accent-rose) 100%);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+}

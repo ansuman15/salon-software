@@ -1,0 +1,151 @@
+.container {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+/* Week Header */
+.weekHeader {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+}
+
+.dayHeader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-4);
+    border-right: 1px solid var(--border-light);
+}
+
+.dayHeader:last-child {
+    border-right: none;
+}
+
+.dayHeader.today .dayNumber {
+    background: var(--text-primary);
+    color: var(--text-inverse);
+}
+
+.dayName {
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: var(--space-2);
+}
+
+.dayNumber {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+}
+
+/* Week Grid */
+.weekGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    min-height: 400px;
+}
+
+.dayColumn {
+    padding: var(--space-3);
+    border-right: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.dayColumn:last-child {
+    border-right: none;
+}
+
+/* Appointment Card */
+.aptCard {
+    display: flex;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.aptCard:hover {
+    background: var(--bg-tertiary);
+    transform: translateY(-1px);
+}
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.aptContent {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.aptTime {
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+}
+
+.aptService {
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.aptCustomer {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+
+.aptStaff {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* Empty state */
+.emptyDay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+@media (max-width: 768px) {
+
+    .weekHeader,
+    .weekGrid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .dayColumn:nth-child(n+4) {
+        display: none;
+    }
+
+    .dayHeader:nth-child(n+4) {
+        display: none;
+    }
+}

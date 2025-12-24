@@ -1,0 +1,65 @@
+.container {
+    display: flex;
+    gap: var(--space-3);
+}
+
+.actionCard {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    text-decoration: none;
+}
+
+.actionCard:hover {
+    background: var(--accent-champagne-light);
+    border-color: var(--accent-champagne);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.actionCard:hover .iconWrapper {
+    background: var(--text-primary);
+    color: var(--text-inverse);
+    transform: scale(1.1);
+}
+
+.actionCard:active {
+    transform: translateY(0);
+}
+
+.iconWrapper {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.actionText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.actionTitle {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+}
+
+.actionDesc {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
