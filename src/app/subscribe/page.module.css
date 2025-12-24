@@ -1,0 +1,226 @@
+.container {
+    min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+.header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.logoIcon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #2d2826 0%, #4a4543 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.logoText {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.content {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+}
+
+.title {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.title h1 {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+}
+
+.title p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.pricingGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.pricingCard {
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.pricingCard:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+}
+
+.pricingCard.popular {
+    border-color: var(--text-primary);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+}
+
+.popularBadge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+    color: white;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.pricingCard h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1rem;
+}
+
+.price {
+    margin-bottom: 0.5rem;
+}
+
+.currency {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.amount {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-display);
+}
+
+.period {
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+.setup {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0 0 1.5rem;
+}
+
+.features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+}
+
+.features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.features li svg {
+    color: #22c55e;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.subscribeBtn {
+    width: 100%;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: var(--font-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.subscribeBtn:hover {
+    background: var(--text-primary);
+    color: white;
+}
+
+.popular .subscribeBtn {
+    background: var(--text-primary);
+    color: white;
+}
+
+.popular .subscribeBtn:hover {
+    background: #1a1817;
+}
+
+.notice {
+    text-align: center;
+    padding: 1.5rem;
+    background: #fef3c7;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.notice p {
+    margin: 0;
+    color: #92400e;
+    font-size: 0.95rem;
+}
+
+.notice a {
+    color: #78350f;
+    font-weight: 500;
+}
+
+.backLink {
+    text-align: center;
+}
+
+.backLink a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: color 0.2s;
+}
+
+.backLink a:hover {
+    color: var(--text-primary);
+}
+
+@media (max-width: 900px) {
+    .pricingGrid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+        margin: 0 auto 2rem;
+    }
+}

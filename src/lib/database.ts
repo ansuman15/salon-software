@@ -1,7 +1,16 @@
 // Local Database Service using localStorage
 // This provides a consistent API that can be swapped for Supabase in production
 
-import { STORAGE_KEYS } from './config';
+import { STORAGE_KEYS, ADMIN_EMAILS, ADMIN_CREDENTIALS, config } from './config';
+
+// Types
+export interface Subscription {
+    userId: string;
+    plan: 'trial' | 'core' | 'standard' | 'premium';
+    startDate: string;
+    endDate: string;
+    status: 'active' | 'expired' | 'cancelled';
+}
 
 // Types
 export interface Salon {
@@ -138,26 +147,190 @@ export const db = {
             return getObjectFromStorage<User>(STORAGE_KEYS.AUTH);
         },
 
-        login: (email: string, password: string): User | null => {
-            const salon = getObjectFromStorage<Salon>(STORAGE_KEYS.SALON);
-            if (!salon) return null;
+        // Check if email is in admin whitelist
+        isAdmin: (email: string): boolean => {
+            return ADMIN_EMAILS.includes(email);
+        },
+
+        login: (email: string, password: string): { success: boolean; message?: string; user?: User } => {
+            // Check for admin credentials first
+            if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+                const adminUser: User = {
+                    id: 'admin-001',
+                    salonId: 'admin-salon',
+                    email: ADMIN_CREDENTIALS.email,
+                    name: ADMIN_CREDENTIALS.name,
+                    password: ADMIN_CREDENTIALS.password,
+                    role: 'owner',
+                    createdAt: new Date().toISOString(),
+                };
+
+                // Save admin user
+                saveObjectToStorage(STORAGE_KEYS.AUTH, adminUser);
+
+                // Set session
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('salonx_session', JSON.stringify({
+                        userId: adminUser.id,
+                        email: adminUser.email,
+                        isAdmin: true,
+                        loginTime: new Date().toISOString()
+                    }));
+                    localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
+                }
+
+                return { success: true, user: adminUser };
+            }
 
             const auth = getObjectFromStorage<User>(STORAGE_KEYS.AUTH);
-            if (auth && auth.email === email && auth.password === password) {
-                return auth;
+
+            if (!auth) {
+                return { success: false, message: "No account found. Please create an account first." };
             }
-            return null;
+
+            if (auth.email !== email) {
+                return { success: false, message: "Invalid email address" };
+            }
+
+            if (auth.password !== password) {
+                return { success: false, message: "Incorrect password" };
+            }
+
+            // Check if non-admin user - they need valid subscription
+            if (!db.auth.isAdmin(email)) {
+                const subscription = db.subscription.get();
+                if (!subscription || subscription.status !== 'active') {
+                    return { success: false, message: "Your subscription has expired. Please subscribe to continue." };
+                }
+            }
+
+            // Set session
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('salonx_session', JSON.stringify({
+                    userId: auth.id,
+                    email: auth.email,
+                    isAdmin: db.auth.isAdmin(email),
+                    loginTime: new Date().toISOString()
+                }));
+            }
+
+            return { success: true, user: auth };
         },
 
         logout: (): void => {
             if (typeof window !== 'undefined') {
-                localStorage.removeItem(STORAGE_KEYS.AUTH);
+                localStorage.removeItem('salonx_session');
             }
+        },
+
+        isAuthenticated: (): boolean => {
+            if (typeof window === 'undefined') return false;
+            const session = localStorage.getItem('salonx_session');
+            const user = getObjectFromStorage<User>(STORAGE_KEYS.AUTH);
+            return !!(session && user);
         },
 
         isOnboardingComplete: (): boolean => {
             if (typeof window === 'undefined') return false;
             return localStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE) === 'true';
+        },
+
+        // Check if current user can access dashboard (has valid subscription/trial or is admin)
+        canAccessDashboard: (): { allowed: boolean; reason?: string; daysRemaining?: number } => {
+            if (typeof window === 'undefined') return { allowed: false };
+
+            const session = localStorage.getItem('salonx_session');
+            if (!session) return { allowed: false, reason: 'Not authenticated' };
+
+            const sessionData = JSON.parse(session);
+
+            // Admins always have access
+            if (sessionData.isAdmin) {
+                return { allowed: true };
+            }
+
+            const subscription = db.subscription.get();
+            if (!subscription) {
+                return { allowed: false, reason: 'No subscription found' };
+            }
+
+            // Check subscription status
+            if (subscription.status !== 'active') {
+                return { allowed: false, reason: 'Subscription expired' };
+            }
+
+            // Check end date
+            const endDate = new Date(subscription.endDate);
+            const now = new Date();
+
+            if (now > endDate) {
+                // Update status
+                db.subscription.updateStatus('expired');
+                return { allowed: false, reason: 'Trial/subscription expired' };
+            }
+
+            // Calculate days remaining
+            const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+            return { allowed: true, daysRemaining };
+        },
+    },
+
+    // Subscription management
+    subscription: {
+        get: (): Subscription | null => {
+            return getObjectFromStorage<Subscription>(STORAGE_KEYS.SUBSCRIPTION);
+        },
+
+        startTrial: (userId: string): Subscription => {
+            const now = new Date();
+            const endDate = new Date(now.getTime() + config.trialPeriodDays * 24 * 60 * 60 * 1000);
+
+            const subscription: Subscription = {
+                userId,
+                plan: 'trial',
+                startDate: now.toISOString(),
+                endDate: endDate.toISOString(),
+                status: 'active',
+            };
+
+            saveObjectToStorage(STORAGE_KEYS.SUBSCRIPTION, subscription);
+            return subscription;
+        },
+
+        subscribe: (userId: string, plan: 'core' | 'standard' | 'premium'): Subscription => {
+            const now = new Date();
+            // Set end date to 30 days from now (monthly subscription)
+            const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+            const subscription: Subscription = {
+                userId,
+                plan,
+                startDate: now.toISOString(),
+                endDate: endDate.toISOString(),
+                status: 'active',
+            };
+
+            saveObjectToStorage(STORAGE_KEYS.SUBSCRIPTION, subscription);
+            return subscription;
+        },
+
+        updateStatus: (status: 'active' | 'expired' | 'cancelled'): void => {
+            const subscription = getObjectFromStorage<Subscription>(STORAGE_KEYS.SUBSCRIPTION);
+            if (subscription) {
+                subscription.status = status;
+                saveObjectToStorage(STORAGE_KEYS.SUBSCRIPTION, subscription);
+            }
+        },
+
+        getTrialDaysRemaining: (): number => {
+            const subscription = getObjectFromStorage<Subscription>(STORAGE_KEYS.SUBSCRIPTION);
+            if (!subscription || subscription.plan !== 'trial') return 0;
+
+            const endDate = new Date(subscription.endDate);
+            const now = new Date();
+
+            return Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
         },
     },
 
@@ -422,12 +595,14 @@ export const db = {
         },
     },
 
-    // Complete onboarding
+    // Complete onboarding (only for admin/developer users)
     completeOnboarding: (
         salon: Omit<Salon, 'id' | 'createdAt'>,
         admin: { name: string; email: string; password: string },
         settings: Omit<Settings, 'id' | 'salonId'>
     ): { salon: Salon; user: User } => {
+        const isAdmin = db.auth.isAdmin(admin.email);
+
         // Create salon
         const createdSalon = db.salon.create(salon);
 
@@ -442,6 +617,21 @@ export const db = {
             createdAt: new Date().toISOString(),
         };
         saveObjectToStorage(STORAGE_KEYS.AUTH, user);
+
+        // Auto-login: Create session with isAdmin flag
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('salonx_session', JSON.stringify({
+                userId: user.id,
+                email: user.email,
+                isAdmin: isAdmin,
+                loginTime: new Date().toISOString()
+            }));
+        }
+
+        // Start 14-day trial (admins always get trial for testing purposes)
+        if (isAdmin) {
+            db.subscription.startTrial(user.id);
+        }
 
         // Save settings
         const fullSettings: Settings = {
