@@ -35,10 +35,6 @@ export default function AppointmentsPage() {
     });
 
     useEffect(() => {
-        if (!db.auth.isOnboardingComplete()) {
-            router.push("/onboarding");
-            return;
-        }
         loadData();
     }, [router]);
 

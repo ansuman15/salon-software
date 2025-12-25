@@ -16,10 +16,6 @@ export default function CustomersPage() {
     const [newCustomer, setNewCustomer] = useState({ name: "", phone: "", email: "", notes: "" });
 
     useEffect(() => {
-        if (!db.auth.isOnboardingComplete()) {
-            router.push("/onboarding");
-            return;
-        }
         loadCustomers();
     }, [router]);
 

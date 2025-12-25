@@ -1,50 +1,74 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { db } from "@/lib/database";
 import styles from "./page.module.css";
 
+// Wrap the main component to support useSearchParams with Suspense
 export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className={styles.container}><div className={styles.loadingDots}><div className={styles.dot}></div><div className={styles.dot}></div><div className={styles.dot}></div></div></div>}>
+            <LoginContent />
+        </Suspense>
+    );
+}
+
+function LoginContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const [activationKey, setActivationKey] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
 
     // Check if already authenticated - redirect to dashboard
     useEffect(() => {
-        const checkAuth = () => {
-            console.log('[Login] Checking existing authentication...');
+        // Check for error in URL params (e.g., from session invalidation)
+        const urlError = searchParams.get('error');
+        if (urlError) {
+            setError(decodeURIComponent(urlError));
+        }
 
-            if (db.auth.isAuthenticated()) {
-                console.log('[Login] Already authenticated, redirecting to dashboard...');
-                router.replace("/dashboard");
-                return;
+        const checkAuth = async () => {
+            // Check for existing session cookie via API
+            try {
+                const res = await fetch('/api/auth/session');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.authenticated) {
+                        router.replace("/dashboard");
+                        return;
+                    }
+                }
+            } catch (e) {
+                // No session, continue to login
             }
-
             setPageLoading(false);
         };
 
         checkAuth();
-    }, [router]);
+    }, [router, searchParams]);
+
+    const formatActivationKey = (value: string) => {
+        // Auto-format as user types: SALONX-XXXX-XXXX-XXXX
+        const cleaned = value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        return cleaned;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
 
-        // Validate inputs on client side first
         const trimmedEmail = email.trim();
-        const trimmedPassword = password.trim();
+        const trimmedKey = activationKey.trim();
 
-        if (!trimmedEmail || !trimmedPassword) {
+        if (!trimmedEmail || !trimmedKey) {
             setError("Please fill in all fields");
             return;
         }
 
-        // Basic email validation
         if (!trimmedEmail.includes("@")) {
             setError("Please enter a valid email address");
             return;
@@ -52,19 +76,26 @@ export default function LoginPage() {
 
         setIsLoading(true);
 
-        // Small delay for UX
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: trimmedEmail,
+                    activationKey: trimmedKey
+                }),
+            });
 
-        // Attempt login
-        console.log('[Login] Attempting login for:', trimmedEmail);
-        const result = db.auth.login(trimmedEmail, trimmedPassword);
+            const data = await res.json();
 
-        if (result.success) {
-            console.log('[Login] Login successful, redirecting to dashboard...');
-            router.push("/dashboard");
-        } else {
-            console.log('[Login] Login failed:', result.message);
-            setError(result.message || "Invalid email or password");
+            if (res.ok && data.success) {
+                router.push("/dashboard");
+            } else {
+                setError(data.error || "Invalid credentials");
+            }
+        } catch (err) {
+            setError("Unable to connect. Please check your internet and try again.");
+        } finally {
             setIsLoading(false);
         }
     };
@@ -88,8 +119,8 @@ export default function LoginPage() {
                 </div>
 
                 <div className={styles.header}>
-                    <h1>Welcome back</h1>
-                    <p>Sign in to your salon dashboard</p>
+                    <h1>Welcome to SalonX</h1>
+                    <p>Sign in with your activation key</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className={styles.form}>
@@ -100,7 +131,7 @@ export default function LoginPage() {
                     )}
 
                     <div className={styles.field}>
-                        <label htmlFor="email">Email</label>
+                        <label htmlFor="email">Email Address</label>
                         <input
                             type="email"
                             id="email"
@@ -114,17 +145,21 @@ export default function LoginPage() {
                     </div>
 
                     <div className={styles.field}>
-                        <label htmlFor="password">Password</label>
+                        <label htmlFor="activationKey">Activation Key</label>
                         <input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            autoComplete="current-password"
+                            type="text"
+                            id="activationKey"
+                            value={activationKey}
+                            onChange={(e) => setActivationKey(formatActivationKey(e.target.value))}
+                            placeholder="SALONX-XXXX-XXXX-XXXX"
+                            autoComplete="off"
                             required
                             disabled={isLoading}
+                            style={{ fontFamily: 'monospace', letterSpacing: '1px' }}
                         />
+                        <small className={styles.fieldHint}>
+                            Your activation key was provided by SalonX support
+                        </small>
                     </div>
 
                     <button
@@ -132,21 +167,15 @@ export default function LoginPage() {
                         className={styles.submitBtn}
                         disabled={isLoading}
                     >
-                        {isLoading ? "Signing in..." : "Sign In"}
+                        {isLoading ? "Signing in..." : "Login to SalonX"}
                     </button>
                 </form>
 
-                <div className={styles.divider}>
-                    <span>or</span>
-                </div>
-
-                <p className={styles.signup}>
-                    Don't have an account?{" "}
-                    <Link href="/onboarding">Create one</Link>
-                </p>
-
-                <div className={styles.adminHint}>
-                    <p>Developer access: admin@salonx.in</p>
+                <div className={styles.helpText}>
+                    <p>
+                        Don't have an activation key?{" "}
+                        <a href="mailto:support@salonx.in">Contact Support</a>
+                    </p>
                 </div>
             </div>
 

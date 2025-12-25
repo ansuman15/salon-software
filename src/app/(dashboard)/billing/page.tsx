@@ -21,11 +21,6 @@ export default function BillingPage() {
     const [customerSearch, setCustomerSearch] = useState("");
 
     useEffect(() => {
-        if (!db.auth.isOnboardingComplete()) {
-            router.push("/onboarding");
-            return;
-        }
-
         setCustomers(db.customers.getAll());
         setServices(db.services.getAll().filter(s => s.isActive));
         setIsLoading(false);

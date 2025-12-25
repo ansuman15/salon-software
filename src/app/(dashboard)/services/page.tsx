@@ -23,11 +23,6 @@ export default function ServicesPage() {
     });
 
     useEffect(() => {
-        if (!db.auth.isOnboardingComplete()) {
-            router.push("/onboarding");
-            return;
-        }
-
         setServices(db.services.getAll());
         setIsLoading(false);
     }, [router]);

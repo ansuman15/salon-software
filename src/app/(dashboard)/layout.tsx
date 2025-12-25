@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
-import UpgradeModal from "@/components/dashboard/UpgradeModal";
 import { db } from "@/lib/database";
 import styles from "./layout.module.css";
 
@@ -14,48 +13,41 @@ export default function DashboardLayout({
 }) {
     const router = useRouter();
     const [isChecking, setIsChecking] = useState(true);
-    const [trialDays, setTrialDays] = useState<number | null>(null);
     const [authError, setAuthError] = useState<string | null>(null);
-    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     useEffect(() => {
-        const checkAccess = () => {
+        const checkAccess = async () => {
             console.log('[Dashboard] Checking access...');
 
-            // First validate session strictly
+            // Check session via API first (for cookie-based auth)
+            try {
+                const res = await fetch('/api/auth/session');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.authenticated) {
+                        console.log('[Dashboard] Session valid via API');
+                        setIsChecking(false);
+                        return;
+                    } else if (data.reason) {
+                        console.log('[Dashboard] Session invalid:', data.reason);
+                        setAuthError(data.reason);
+                        // Redirect with error message
+                        const errorParam = encodeURIComponent(data.reason);
+                        router.replace(`/login?error=${errorParam}`);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('[Dashboard] API session check failed, trying local');
+            }
+
+            // Fallback to local session check (for dev mode)
             const sessionValidation = db.auth.validateSession();
             if (!sessionValidation.valid) {
                 console.log('[Dashboard] Session invalid:', sessionValidation.reason);
                 setAuthError(sessionValidation.reason || 'Session invalid');
-                // Redirect to login
                 router.replace("/login");
                 return;
-            }
-
-            // Check if onboarding is complete
-            if (!db.auth.isOnboardingComplete()) {
-                console.log('[Dashboard] Onboarding not complete, redirecting...');
-                router.replace("/onboarding");
-                return;
-            }
-
-            // Check dashboard access (subscription/trial status)
-            const access = db.auth.canAccessDashboard();
-            console.log('[Dashboard] Access check:', access);
-
-            if (!access.allowed) {
-                console.log('[Dashboard] Access denied:', access.reason);
-                // Redirect to appropriate page
-                if (access.reason === 'No subscription found' || access.reason === 'Subscription expired') {
-                    router.replace("/subscribe");
-                } else {
-                    router.replace("/login");
-                }
-                return;
-            }
-
-            if (access.daysRemaining !== undefined) {
-                setTrialDays(access.daysRemaining);
             }
 
             console.log('[Dashboard] Access granted');
@@ -78,28 +70,8 @@ export default function DashboardLayout({
         <div className={styles.layout}>
             <Sidebar />
             <main className={styles.main}>
-                {/* Trial Banner - Clickable to show upgrade modal */}
-                {trialDays !== null && trialDays <= 14 && (
-                    <div className={styles.trialBanner}>
-                        <span>
-                            🎉 {trialDays > 0
-                                ? `You have ${trialDays} day${trialDays === 1 ? '' : 's'} left in your free trial`
-                                : 'Your trial has ended'}
-                        </span>
-                        <button className={styles.upgradeBtn} onClick={() => setShowUpgradeModal(true)}>
-                            Upgrade Now
-                        </button>
-                    </div>
-                )}
                 {children}
             </main>
-
-            {/* Upgrade Modal */}
-            <UpgradeModal
-                isOpen={showUpgradeModal}
-                onClose={() => setShowUpgradeModal(false)}
-                daysRemaining={trialDays || 0}
-            />
         </div>
     );
 }

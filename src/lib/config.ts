@@ -1,6 +1,5 @@
 // Environment configuration for SalonX
-// For local development, we'll use localStorage as a mock database
-// In production, these would point to Supabase
+// Admin-controlled activation key authentication
 
 export const config = {
     // Database mode: 'local' uses localStorage, 'supabase' uses real DB
@@ -10,21 +9,21 @@ export const config = {
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
 
-    // Trial period in days
-    trialPeriodDays: 14,
-
     // Session configuration
     sessionMaxAgeHours: 24, // Session expires after 24 hours
-    sessionVersion: '1.0.0', // Bump to invalidate old sessions
+    sessionVersion: '2.0.0', // Bumped to invalidate old sessions (v1 had trial logic)
+
+    // Activation key settings
+    activationKeyExpiryHours: 72, // Default key expiry
 };
 
-// Admin/Developer whitelist - these emails can bypass trial restrictions
+// Admin/Developer whitelist - these emails can access admin panel
 export const ADMIN_EMAILS = [
     'admin@salonx.in',
     'developer@salonx.in',
 ];
 
-// Pre-configured admin account for testing
+// Pre-configured admin account for testing (admin panel only)
 export const ADMIN_CREDENTIALS = {
     email: 'admin@salonx.in',
     password: 'SalonX@2024',
@@ -40,16 +39,6 @@ export const STORAGE_KEYS = {
     APPOINTMENTS: 'salonx_appointments',
     BILLS: 'salonx_bills',
     SETTINGS: 'salonx_settings',
-    AUTH: 'salonx_auth',
-    SESSION: 'salonx_session',
-    SUBSCRIPTION: 'salonx_subscription',
-    ONBOARDING_COMPLETE: 'salonx_onboarding_complete',
-    ONBOARDING_STATE: 'salonx_onboarding_state',
+    // Auth keys (simplified - no onboarding/trial)
+    SESSION: 'salonx_session_v2',
 };
-
-// Onboarding states
-export const ONBOARDING_STATES = {
-    NOT_STARTED: 'not_started',
-    IN_PROGRESS: 'in_progress',
-    COMPLETED: 'completed',
-} as const;

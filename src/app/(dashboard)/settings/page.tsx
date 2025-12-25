@@ -17,11 +17,6 @@ export default function SettingsPage() {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     useEffect(() => {
-        if (!db.auth.isOnboardingComplete()) {
-            router.push("/onboarding");
-            return;
-        }
-
         setSalon(db.salon.get());
         setSettings(db.settings.get());
         setIsLoading(false);

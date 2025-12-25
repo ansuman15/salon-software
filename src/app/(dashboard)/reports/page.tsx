@@ -23,11 +23,6 @@ export default function ReportsPage() {
     });
 
     useEffect(() => {
-        if (!db.auth.isOnboardingComplete()) {
-            router.push("/onboarding");
-            return;
-        }
-
         calculateReports();
     }, [router]);
 

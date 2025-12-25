@@ -42,11 +42,6 @@ export default function StaffPage() {
     });
 
     useEffect(() => {
-        if (!db.auth.isOnboardingComplete()) {
-            router.push("/onboarding");
-            return;
-        }
-
         setStaff(db.staff.getAll());
         setServices(db.services.getAll());
         setIsLoading(false);

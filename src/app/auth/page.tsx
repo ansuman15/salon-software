@@ -1,47 +1,40 @@
 "use client";
 
-import Link from "next/link";
-import styles from "./page.module.css";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-const LogoIcon = () => (
-    <div className={styles.logoIcon}>S</div>
-);
-
+/**
+ * Auth page - Redirects to login
+ * No self-signup available
+ */
 export default function AuthPage() {
+    const router = useRouter();
+
+    useEffect(() => {
+        router.replace("/login");
+    }, [router]);
+
     return (
-        <div className={styles.container}>
-            <div className={styles.card}>
-                <div className={styles.logo}>
-                    <LogoIcon />
-                    <span className={styles.logoText}>SalonX</span>
-                </div>
-
-                <div className={styles.header}>
-                    <h1>Salon Admin Portal</h1>
-                    <p>Manage your salon operations with ease</p>
-                </div>
-
-                <div className={styles.buttons}>
-                    <Link href="/onboarding" className={styles.primaryBtn}>
-                        <span className={styles.btnIcon}>+</span>
-                        Create Account
-                    </Link>
-                    <Link href="/login" className={styles.secondaryBtn}>
-                        <span className={styles.btnIcon}>→</span>
-                        Login
-                    </Link>
-                </div>
-
-                <p className={styles.terms}>
-                    By continuing, you agree to our{" "}
-                    <a href="#">Terms of Service</a> and{" "}
-                    <a href="#">Privacy Policy</a>
-                </p>
-            </div>
-
-            <Link href="/" className={styles.backLink}>
-                ← Back to home
-            </Link>
+        <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #faf9f7 0%, #f5f0e8 50%, #f8f0f0 100%)',
+        }}>
+            <div style={{
+                width: 32,
+                height: 32,
+                border: '3px solid #e5e3e0',
+                borderTopColor: '#2d2826',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite',
+            }} />
+            <style jsx>{`
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }

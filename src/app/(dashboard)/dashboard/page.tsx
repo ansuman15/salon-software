@@ -39,12 +39,6 @@ export default function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check if onboarded
-        if (!db.auth.isOnboardingComplete()) {
-            router.push("/onboarding");
-            return;
-        }
-
         // Load data from localStorage
         const today = new Date().toISOString().split('T')[0];
         const salon = db.salon.get();
