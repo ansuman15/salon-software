@@ -7,6 +7,7 @@ import { db, Appointment, Customer, Staff, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
 type ViewMode = 'day' | 'week';
+type ModalMode = 'add' | 'edit' | null;
 
 export default function AppointmentsPage() {
     const router = useRouter();
@@ -17,8 +18,12 @@ export default function AppointmentsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState<ViewMode>('day');
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [newAppointment, setNewAppointment] = useState({
+    const [modalMode, setModalMode] = useState<ModalMode>(null);
+    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelReason, setCancelReason] = useState("");
+
+    const [formData, setFormData] = useState({
         customerId: "",
         customerName: "",
         customerPhone: "",
@@ -34,7 +39,6 @@ export default function AppointmentsPage() {
             router.push("/onboarding");
             return;
         }
-
         loadData();
     }, [router]);
 
@@ -60,62 +64,119 @@ export default function AppointmentsPage() {
 
     const todayAppointments = appointments.filter(a => a.appointmentDate === getDateStr(selectedDate));
 
-    const handleAddAppointment = () => {
-        const salon = db.salon.get();
-        if (!salon || !newAppointment.staffId || newAppointment.serviceIds.length === 0) return;
-
-        // Create or find customer
-        let customerId = newAppointment.customerId;
-        if (!customerId && newAppointment.customerName && newAppointment.customerPhone) {
-            const newCustomer = db.customers.create({
-                salonId: salon.id,
-                name: newAppointment.customerName,
-                phone: newAppointment.customerPhone,
-                tags: ["New"],
-            });
-            customerId = newCustomer.id;
-        }
-
-        if (!customerId) return;
-
-        // Calculate end time based on services
-        const totalDuration = newAppointment.serviceIds.reduce((sum, id) => {
-            const service = services.find(s => s.id === id);
-            return sum + (service?.durationMinutes || 30);
-        }, 0);
-
-        const [hours, mins] = newAppointment.time.split(':').map(Number);
-        const endMins = hours * 60 + mins + totalDuration;
-        const endTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
-
-        const created = db.appointments.create({
-            salonId: salon.id,
-            customerId,
-            staffId: newAppointment.staffId,
-            appointmentDate: newAppointment.date,
-            startTime: newAppointment.time,
-            endTime,
-            status: "confirmed",
-            serviceIds: newAppointment.serviceIds,
-            notes: newAppointment.notes,
-        });
-
-        setAppointments([...appointments, created]);
-        setShowAddModal(false);
-        setNewAppointment({
+    const openAddModal = () => {
+        setFormData({
             customerId: "",
             customerName: "",
             customerPhone: "",
             staffId: "",
-            date: new Date().toISOString().split('T')[0],
+            date: getDateStr(selectedDate),
             time: "10:00",
             serviceIds: [],
             notes: "",
         });
+        setSelectedAppointment(null);
+        setModalMode('add');
+    };
+
+    const openEditModal = (apt: Appointment) => {
+        setFormData({
+            customerId: apt.customerId,
+            customerName: "",
+            customerPhone: "",
+            staffId: apt.staffId,
+            date: apt.appointmentDate,
+            time: apt.startTime,
+            serviceIds: apt.serviceIds,
+            notes: apt.notes || "",
+        });
+        setSelectedAppointment(apt);
+        setModalMode('edit');
+    };
+
+    const closeModal = () => {
+        setModalMode(null);
+        setSelectedAppointment(null);
+        setShowCancelModal(false);
+        setCancelReason("");
+    };
+
+    const handleSave = () => {
+        const salon = db.salon.get();
+        if (!salon || !formData.staffId || formData.serviceIds.length === 0) return;
+
+        // Calculate end time based on services
+        const totalDuration = formData.serviceIds.reduce((sum, id) => {
+            const service = services.find(s => s.id === id);
+            return sum + (service?.durationMinutes || 30);
+        }, 0);
+
+        const [hours, mins] = formData.time.split(':').map(Number);
+        const endMins = hours * 60 + mins + totalDuration;
+        const endTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
+
+        if (modalMode === 'add') {
+            // Create or find customer
+            let customerId = formData.customerId;
+            if (!customerId && formData.customerName && formData.customerPhone) {
+                const newCustomer = db.customers.create({
+                    salonId: salon.id,
+                    name: formData.customerName,
+                    phone: formData.customerPhone,
+                    tags: ["New"],
+                });
+                customerId = newCustomer.id;
+            }
+            if (!customerId) return;
+
+            const created = db.appointments.create({
+                salonId: salon.id,
+                customerId,
+                staffId: formData.staffId,
+                appointmentDate: formData.date,
+                startTime: formData.time,
+                endTime,
+                status: "confirmed",
+                serviceIds: formData.serviceIds,
+                notes: formData.notes,
+            });
+
+            setAppointments([...appointments, created]);
+        } else if (modalMode === 'edit' && selectedAppointment) {
+            const updated = db.appointments.update(selectedAppointment.id, {
+                staffId: formData.staffId,
+                appointmentDate: formData.date,
+                startTime: formData.time,
+                endTime,
+                serviceIds: formData.serviceIds,
+                notes: formData.notes,
+            });
+
+            if (updated) {
+                setAppointments(appointments.map(a => a.id === selectedAppointment.id ? updated : a));
+            }
+        }
+
+        closeModal();
+    };
+
+    const handleCancel = () => {
+        if (!selectedAppointment) return;
+
+        const updated = db.appointments.update(selectedAppointment.id, {
+            status: "cancelled",
+            notes: cancelReason ? `${selectedAppointment.notes || ''}\n[Cancelled: ${cancelReason}]`.trim() : selectedAppointment.notes,
+        });
+
+        if (updated) {
+            setAppointments(appointments.map(a => a.id === selectedAppointment.id ? updated : a));
+        }
+
+        closeModal();
     };
 
     const toggleService = (serviceId: string) => {
-        setNewAppointment(prev => ({
+        setFormData(prev => ({
             ...prev,
             serviceIds: prev.serviceIds.includes(serviceId)
                 ? prev.serviceIds.filter(id => id !== serviceId)
@@ -167,7 +228,7 @@ export default function AppointmentsPage() {
                         </button>
                     </div>
 
-                    <button className={styles.addBtn} onClick={() => setShowAddModal(true)}>
+                    <button className={styles.addBtn} onClick={openAddModal}>
                         + New Appointment
                     </button>
                 </div>
@@ -175,7 +236,7 @@ export default function AppointmentsPage() {
                 {todayAppointments.length === 0 ? (
                     <div className={styles.empty}>
                         <p>No appointments for {formatDate(selectedDate)}</p>
-                        <button onClick={() => setShowAddModal(true)}>Book an appointment</button>
+                        <button onClick={openAddModal}>Book an appointment</button>
                     </div>
                 ) : (
                     <div className={styles.appointmentsList}>
@@ -205,9 +266,24 @@ export default function AppointmentsPage() {
                                         <div className={styles.actions}>
                                             {apt.status === 'confirmed' && (
                                                 <>
+                                                    <button onClick={() => openEditModal(apt)}>Edit</button>
                                                     <button onClick={() => updateStatus(apt.id, 'completed')}>Complete</button>
-                                                    <button onClick={() => updateStatus(apt.id, 'cancelled')}>Cancel</button>
+                                                    <button
+                                                        className={styles.cancelBtn}
+                                                        onClick={() => {
+                                                            setSelectedAppointment(apt);
+                                                            setShowCancelModal(true);
+                                                        }}
+                                                    >
+                                                        Cancel
+                                                    </button>
                                                 </>
+                                            )}
+                                            {apt.status === 'completed' && (
+                                                <span className={styles.completedText}>✓ Done</span>
+                                            )}
+                                            {apt.status === 'cancelled' && (
+                                                <button onClick={() => updateStatus(apt.id, 'confirmed')}>Restore</button>
                                             )}
                                         </div>
                                     </div>
@@ -217,39 +293,49 @@ export default function AppointmentsPage() {
                 )}
             </div>
 
-            {/* Add Appointment Modal */}
-            {showAddModal && (
-                <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
+            {/* Add/Edit Appointment Modal */}
+            {modalMode && (
+                <div className={styles.modalOverlay} onClick={closeModal}>
                     <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                        <h3>New Appointment</h3>
+                        <h3>{modalMode === 'add' ? 'New Appointment' : 'Edit Appointment'}</h3>
                         <div className={styles.modalForm}>
-                            <div className={styles.inputGroup}>
-                                <label>Customer</label>
-                                <select
-                                    value={newAppointment.customerId}
-                                    onChange={e => setNewAppointment({ ...newAppointment, customerId: e.target.value })}
-                                >
-                                    <option value="">-- Select or add new --</option>
-                                    {customers.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {modalMode === 'add' && (
+                                <>
+                                    <div className={styles.inputGroup}>
+                                        <label>Customer</label>
+                                        <select
+                                            value={formData.customerId}
+                                            onChange={e => setFormData({ ...formData, customerId: e.target.value })}
+                                        >
+                                            <option value="">-- Select or add new --</option>
+                                            {customers.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>
+                                            ))}
+                                        </select>
+                                    </div>
 
-                            {!newAppointment.customerId && (
-                                <div className={styles.newCustomer}>
-                                    <input
-                                        type="text"
-                                        placeholder="Customer Name"
-                                        value={newAppointment.customerName}
-                                        onChange={e => setNewAppointment({ ...newAppointment, customerName: e.target.value })}
-                                    />
-                                    <input
-                                        type="tel"
-                                        placeholder="Phone"
-                                        value={newAppointment.customerPhone}
-                                        onChange={e => setNewAppointment({ ...newAppointment, customerPhone: e.target.value })}
-                                    />
+                                    {!formData.customerId && (
+                                        <div className={styles.newCustomer}>
+                                            <input
+                                                type="text"
+                                                placeholder="Customer Name"
+                                                value={formData.customerName}
+                                                onChange={e => setFormData({ ...formData, customerName: e.target.value })}
+                                            />
+                                            <input
+                                                type="tel"
+                                                placeholder="Phone"
+                                                value={formData.customerPhone}
+                                                onChange={e => setFormData({ ...formData, customerPhone: e.target.value })}
+                                            />
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {modalMode === 'edit' && selectedAppointment && (
+                                <div className={styles.editCustomerInfo}>
+                                    <strong>Customer:</strong> {getCustomerName(selectedAppointment.customerId)}
                                 </div>
                             )}
 
@@ -258,16 +344,16 @@ export default function AppointmentsPage() {
                                     <label>Date</label>
                                     <input
                                         type="date"
-                                        value={newAppointment.date}
-                                        onChange={e => setNewAppointment({ ...newAppointment, date: e.target.value })}
+                                        value={formData.date}
+                                        onChange={e => setFormData({ ...formData, date: e.target.value })}
                                     />
                                 </div>
                                 <div className={styles.inputGroup}>
                                     <label>Time</label>
                                     <input
                                         type="time"
-                                        value={newAppointment.time}
-                                        onChange={e => setNewAppointment({ ...newAppointment, time: e.target.value })}
+                                        value={formData.time}
+                                        onChange={e => setFormData({ ...formData, time: e.target.value })}
                                     />
                                 </div>
                             </div>
@@ -275,8 +361,8 @@ export default function AppointmentsPage() {
                             <div className={styles.inputGroup}>
                                 <label>Staff</label>
                                 <select
-                                    value={newAppointment.staffId}
-                                    onChange={e => setNewAppointment({ ...newAppointment, staffId: e.target.value })}
+                                    value={formData.staffId}
+                                    onChange={e => setFormData({ ...formData, staffId: e.target.value })}
                                 >
                                     <option value="">-- Select staff --</option>
                                     {staff.map(s => (
@@ -292,7 +378,7 @@ export default function AppointmentsPage() {
                                         <button
                                             key={s.id}
                                             type="button"
-                                            className={`${styles.serviceBtn} ${newAppointment.serviceIds.includes(s.id) ? styles.selected : ''}`}
+                                            className={`${styles.serviceBtn} ${formData.serviceIds.includes(s.id) ? styles.selected : ''}`}
                                             onClick={() => toggleService(s.id)}
                                         >
                                             {s.name}
@@ -304,18 +390,46 @@ export default function AppointmentsPage() {
 
                             <textarea
                                 placeholder="Notes (optional)"
-                                value={newAppointment.notes}
-                                onChange={e => setNewAppointment({ ...newAppointment, notes: e.target.value })}
+                                value={formData.notes}
+                                onChange={e => setFormData({ ...formData, notes: e.target.value })}
                             />
                         </div>
                         <div className={styles.modalActions}>
-                            <button onClick={() => setShowAddModal(false)}>Cancel</button>
+                            <button onClick={closeModal}>Cancel</button>
                             <button
                                 className={styles.primaryBtn}
-                                onClick={handleAddAppointment}
-                                disabled={!newAppointment.staffId || newAppointment.serviceIds.length === 0}
+                                onClick={handleSave}
+                                disabled={!formData.staffId || formData.serviceIds.length === 0}
                             >
-                                Book Appointment
+                                {modalMode === 'add' ? 'Book Appointment' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Confirmation Modal */}
+            {showCancelModal && selectedAppointment && (
+                <div className={styles.modalOverlay} onClick={closeModal}>
+                    <div className={styles.cancelModal} onClick={e => e.stopPropagation()}>
+                        <h3>Cancel Appointment</h3>
+                        <p>Are you sure you want to cancel this appointment?</p>
+                        <div className={styles.cancelInfo}>
+                            <strong>{getCustomerName(selectedAppointment.customerId)}</strong>
+                            <span>{selectedAppointment.appointmentDate} at {selectedAppointment.startTime}</span>
+                        </div>
+                        <div className={styles.inputGroup}>
+                            <label>Reason (optional)</label>
+                            <textarea
+                                placeholder="e.g., Customer no-show, Rescheduled..."
+                                value={cancelReason}
+                                onChange={e => setCancelReason(e.target.value)}
+                            />
+                        </div>
+                        <div className={styles.modalActions}>
+                            <button onClick={closeModal}>Keep Appointment</button>
+                            <button className={styles.dangerBtn} onClick={handleCancel}>
+                                Yes, Cancel
                             </button>
                         </div>
                     </div>

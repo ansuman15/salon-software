@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { db, Salon } from "@/lib/database";
+import LogoutModal from "./LogoutModal";
 import styles from "./Sidebar.module.css";
 
 // Icons
@@ -109,78 +110,96 @@ const secondaryNavItems = [
 export default function Sidebar() {
     const pathname = usePathname();
     const [salon, setSalon] = useState<Salon | null>(null);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     useEffect(() => {
         const salonData = db.salon.get();
         setSalon(salonData);
     }, []);
 
-    const handleLogout = () => {
+    const handleLogoutClick = () => {
+        setShowLogoutModal(true);
+    };
+
+    const handleLogoutConfirm = () => {
         db.auth.logout();
         window.location.href = '/';
+    };
+
+    const handleLogoutCancel = () => {
+        setShowLogoutModal(false);
     };
 
     const getInitials = (name: string) =>
         name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
 
     return (
-        <aside className={styles.sidebar}>
-            {/* Logo */}
-            <div className={styles.logo}>
-                {salon?.logoUrl ? (
-                    <img src={salon.logoUrl} alt={salon.name} className={styles.logoImage} />
-                ) : (
-                    <div className={styles.logoPlaceholder}>
-                        {salon?.name ? getInitials(salon.name) : 'SX'}
+        <>
+            <aside className={styles.sidebar}>
+                {/* Logo */}
+                <div className={styles.logo}>
+                    {salon?.logoUrl ? (
+                        <img src={salon.logoUrl} alt={salon.name} className={styles.logoImage} />
+                    ) : (
+                        <div className={styles.logoPlaceholder}>
+                            {salon?.name ? getInitials(salon.name) : 'SX'}
+                        </div>
+                    )}
+                    <span className={styles.logoText}>{salon?.name || 'SalonX'}</span>
+                </div>
+
+                {/* Main Navigation */}
+                <nav className={styles.nav}>
+                    <div className={styles.navSection}>
+                        <span className={styles.sectionLabel}>Main</span>
+                        {mainNavItems.map((item) => {
+                            const isActive = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                                >
+                                    <item.icon />
+                                    <span>{item.name}</span>
+                                </Link>
+                            );
+                        })}
                     </div>
-                )}
-                <span className={styles.logoText}>{salon?.name || 'SalonX'}</span>
-            </div>
 
-            {/* Main Navigation */}
-            <nav className={styles.nav}>
-                <div className={styles.navSection}>
-                    <span className={styles.sectionLabel}>Main</span>
-                    {mainNavItems.map((item) => {
-                        const isActive = pathname === item.href;
-                        return (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className={`${styles.navItem} ${isActive ? styles.active : ''}`}
-                            >
-                                <item.icon />
-                                <span>{item.name}</span>
-                            </Link>
-                        );
-                    })}
+                    <div className={styles.navSection}>
+                        <span className={styles.sectionLabel}>System</span>
+                        {secondaryNavItems.map((item) => {
+                            const isActive = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                                >
+                                    <item.icon />
+                                    <span>{item.name}</span>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </nav>
+
+                {/* Logout */}
+                <div className={styles.footer}>
+                    <button className={styles.logoutBtn} onClick={handleLogoutClick}>
+                        <LogoutIcon />
+                        <span>Logout</span>
+                    </button>
                 </div>
+            </aside>
 
-                <div className={styles.navSection}>
-                    <span className={styles.sectionLabel}>System</span>
-                    {secondaryNavItems.map((item) => {
-                        const isActive = pathname === item.href;
-                        return (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className={`${styles.navItem} ${isActive ? styles.active : ''}`}
-                            >
-                                <item.icon />
-                                <span>{item.name}</span>
-                            </Link>
-                        );
-                    })}
-                </div>
-            </nav>
-
-            {/* Logout */}
-            <div className={styles.footer}>
-                <button className={styles.logoutBtn} onClick={handleLogout}>
-                    <LogoutIcon />
-                    <span>Logout</span>
-                </button>
-            </div>
-        </aside>
+            {/* Logout Confirmation Modal */}
+            <LogoutModal
+                isOpen={showLogoutModal}
+                onConfirm={handleLogoutConfirm}
+                onCancel={handleLogoutCancel}
+            />
+        </>
     );
 }

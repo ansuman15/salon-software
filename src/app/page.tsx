@@ -225,7 +225,7 @@ export default function LandingPage() {
 
                     <div className={styles.navActions}>
                         <Link href="/login" className={styles.loginBtn}>Login</Link>
-                        <Link href="/auth" className={styles.ctaBtn}>Start Free Trial</Link>
+                        <Link href="/onboarding" className={styles.ctaBtn}>Start Free Trial</Link>
                     </div>
 
                     <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -239,7 +239,7 @@ export default function LandingPage() {
                         <a href="#pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
                         <a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
                         <Link href="/login">Login</Link>
-                        <Link href="/auth" className={styles.ctaBtn}>Start Free Trial</Link>
+                        <Link href="/onboarding" className={styles.ctaBtn}>Start Free Trial</Link>
                     </div>
                 )}
             </nav>
@@ -260,7 +260,7 @@ export default function LandingPage() {
                         simple, secure, cloud-based system designed specifically for modern salons.
                     </p>
                     <div className={styles.heroCta}>
-                        <Link href="/auth" className={styles.primaryBtn}>
+                        <Link href="/onboarding" className={styles.primaryBtn}>
                             <span>Start 14-Day Free Trial</span>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -446,7 +446,7 @@ export default function LandingPage() {
                                         </li>
                                     ))}
                                 </ul>
-                                <Link href="/auth" className={styles.planBtn}>Start Free Trial</Link>
+                                <Link href={`/onboarding?plan=${plan.name.toLowerCase()}`} className={styles.planBtn}>Start Free Trial</Link>
                             </div>
                         </AnimatedSection>
                     ))}
@@ -488,7 +488,7 @@ export default function LandingPage() {
             <AnimatedSection className={styles.finalCta}>
                 <h2>Ready to transform your salon?</h2>
                 <p>Join 500+ salons already using SalonX to streamline operations</p>
-                <Link href="/auth" className={styles.primaryBtn}>
+                <Link href="/onboarding" className={styles.primaryBtn}>
                     <span>Start Your 14-Day Free Trial</span>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <line x1="5" y1="12" x2="19" y2="12" />

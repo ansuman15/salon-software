@@ -424,3 +424,87 @@
         width: 100%;
     }
 }
+
+/* Cancel Button */
+.cancelBtn {
+    background: #fef2f2 !important;
+    border: 1px solid #fecaca !important;
+    color: #dc2626 !important;
+}
+
+.cancelBtn:hover {
+    background: #dc2626 !important;
+    color: white !important;
+}
+
+/* Completed Text */
+.completedText {
+    color: var(--success);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+}
+
+/* Edit Customer Info */
+.editCustomerInfo {
+    padding: var(--space-3);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.editCustomerInfo strong {
+    color: var(--text-primary);
+}
+
+/* Cancel Modal */
+.cancelModal {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    width: 100%;
+    max-width: 400px;
+}
+
+.cancelModal h3 {
+    margin: 0 0 var(--space-2);
+    color: var(--text-primary);
+}
+
+.cancelModal>p {
+    margin: 0 0 var(--space-4);
+    color: var(--text-muted);
+}
+
+.cancelInfo {
+    padding: var(--space-3);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-4);
+}
+
+.cancelInfo strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.cancelInfo span {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.cancelModal .inputGroup textarea {
+    min-height: 80px;
+}
+
+/* Danger Button */
+.dangerBtn {
+    background: #dc2626 !important;
+    border: none !important;
+    color: white !important;
+}
+
+.dangerBtn:hover {
+    background: #b91c1c !important;
+}

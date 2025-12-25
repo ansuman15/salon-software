@@ -12,6 +12,10 @@ export const config = {
 
     // Trial period in days
     trialPeriodDays: 14,
+
+    // Session configuration
+    sessionMaxAgeHours: 24, // Session expires after 24 hours
+    sessionVersion: '1.0.0', // Bump to invalidate old sessions
 };
 
 // Admin/Developer whitelist - these emails can bypass trial restrictions
@@ -37,6 +41,15 @@ export const STORAGE_KEYS = {
     BILLS: 'salonx_bills',
     SETTINGS: 'salonx_settings',
     AUTH: 'salonx_auth',
+    SESSION: 'salonx_session',
     SUBSCRIPTION: 'salonx_subscription',
     ONBOARDING_COMPLETE: 'salonx_onboarding_complete',
+    ONBOARDING_STATE: 'salonx_onboarding_state',
 };
+
+// Onboarding states
+export const ONBOARDING_STATES = {
+    NOT_STARTED: 'not_started',
+    IN_PROGRESS: 'in_progress',
+    COMPLETED: 'completed',
+} as const;

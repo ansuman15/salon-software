@@ -1,0 +1,326 @@
+.container {
+    padding: 2rem;
+    max-width: 1200px;
+}
+
+.header {
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+}
+
+.header p {
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--text-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.message {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.message.success {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+}
+
+.message.error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+}
+
+.content {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+}
+
+/* Profile Card */
+.profileCard {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    border: 1px solid var(--border-light);
+    height: fit-content;
+}
+
+.avatar {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #2d2826 0%, #4a4543 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 auto 1.5rem;
+}
+
+.profileCard h2 {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem;
+}
+
+.role {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+    text-transform: capitalize;
+}
+
+.email {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0 0 1.5rem;
+}
+
+.badge {
+    margin-top: 1rem;
+}
+
+.adminBadge,
+.trialBadge,
+.proBadge {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.adminBadge {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    color: white;
+}
+
+.trialBadge {
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+    color: #78350f;
+}
+
+.proBadge {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: white;
+}
+
+/* Details Card */
+.detailsCard {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    border: 1px solid var(--border-light);
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.cardHeader h3 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.editBtn {
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.editBtn:hover {
+    background: var(--bg-primary);
+    border-color: var(--border-medium);
+}
+
+.editActions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.cancelBtn {
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.saveBtn {
+    padding: 0.5rem 1rem;
+    background: var(--text-primary);
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.saveBtn:hover:not(:disabled) {
+    background: #1a1817;
+}
+
+.saveBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Form */
+.formSection {
+    margin-bottom: 2rem;
+}
+
+.formSection:last-child {
+    margin-bottom: 0;
+}
+
+.formSection h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 1rem;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.field label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.field p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 1rem;
+}
+
+.field input {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: var(--font-primary);
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+
+.field input:focus {
+    outline: none;
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(45, 40, 38, 0.1);
+}
+
+.readonly {
+    color: var(--text-muted) !important;
+}
+
+.hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Status Grid */
+.statusGrid {
+    display: flex;
+    gap: 2rem;
+}
+
+.statusItem {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.statusLabel {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.statusValue {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .content {
+        grid-template-columns: 1fr;
+    }
+
+    .formGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .statusGrid {
+        flex-wrap: wrap;
+    }
+}

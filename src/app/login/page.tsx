@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/database";
@@ -12,29 +12,72 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [pageLoading, setPageLoading] = useState(true);
+
+    // Check if already authenticated - redirect to dashboard
+    useEffect(() => {
+        const checkAuth = () => {
+            console.log('[Login] Checking existing authentication...');
+
+            if (db.auth.isAuthenticated()) {
+                console.log('[Login] Already authenticated, redirecting to dashboard...');
+                router.replace("/dashboard");
+                return;
+            }
+
+            setPageLoading(false);
+        };
+
+        checkAuth();
+    }, [router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-        setIsLoading(true);
 
-        // Validate inputs
-        if (!email || !password) {
+        // Validate inputs on client side first
+        const trimmedEmail = email.trim();
+        const trimmedPassword = password.trim();
+
+        if (!trimmedEmail || !trimmedPassword) {
             setError("Please fill in all fields");
-            setIsLoading(false);
             return;
         }
 
+        // Basic email validation
+        if (!trimmedEmail.includes("@")) {
+            setError("Please enter a valid email address");
+            return;
+        }
+
+        setIsLoading(true);
+
+        // Small delay for UX
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // Attempt login
-        const result = db.auth.login(email, password);
+        console.log('[Login] Attempting login for:', trimmedEmail);
+        const result = db.auth.login(trimmedEmail, trimmedPassword);
 
         if (result.success) {
+            console.log('[Login] Login successful, redirecting to dashboard...');
             router.push("/dashboard");
         } else {
+            console.log('[Login] Login failed:', result.message);
             setError(result.message || "Invalid email or password");
             setIsLoading(false);
         }
     };
+
+    if (pageLoading) {
+        return (
+            <div className={styles.container}>
+                <div className={styles.loading}>
+                    <div className={styles.spinner}></div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.container}>
@@ -65,6 +108,8 @@ export default function LoginPage() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@example.com"
                             autoComplete="email"
+                            required
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -77,6 +122,8 @@ export default function LoginPage() {
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
                             autoComplete="current-password"
+                            required
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -97,6 +144,10 @@ export default function LoginPage() {
                     Don't have an account?{" "}
                     <Link href="/onboarding">Create one</Link>
                 </p>
+
+                <div className={styles.adminHint}>
+                    <p>Developer access: admin@salonx.in</p>
+                </div>
             </div>
 
             <Link href="/" className={styles.backLink}>

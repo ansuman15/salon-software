@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { db, User } from "@/lib/database";
 import styles from "./Header.module.css";
 
@@ -81,7 +82,8 @@ export default function Header({ title, subtitle }: HeaderProps) {
                     )}
                 </div>
 
-                <div className={styles.userSection}>
+                {/* User Profile - Clickable */}
+                <Link href="/profile" className={styles.userSection}>
                     <div className={styles.userInfo}>
                         <span className={styles.userName}>{user?.name || 'User'}</span>
                         <span className={styles.userRole}>{user?.role || 'Owner'}</span>
@@ -89,7 +91,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
                     <div className={styles.avatar}>
                         {user?.name ? getInitials(user.name) : 'U'}
                     </div>
-                </div>
+                </Link>
             </div>
         </header>
     );

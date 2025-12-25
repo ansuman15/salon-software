@@ -1,9 +1,25 @@
 // Local Database Service using localStorage
 // This provides a consistent API that can be swapped for Supabase in production
 
-import { STORAGE_KEYS, ADMIN_EMAILS, ADMIN_CREDENTIALS, config } from './config';
+import { STORAGE_KEYS, ADMIN_EMAILS, ADMIN_CREDENTIALS, config, ONBOARDING_STATES } from './config';
 
 // Types
+export interface Session {
+    userId: string;
+    email: string;
+    isAdmin: boolean;
+    loginTime: string;
+    expiresAt: string;
+    version: string;
+}
+
+export interface OnboardingState {
+    status: 'not_started' | 'in_progress' | 'completed';
+    currentStep: number;
+    lastUpdated: string;
+    salonId?: string;
+}
+
 export interface Subscription {
     userId: string;
     plan: 'trial' | 'core' | 'standard' | 'premium';
@@ -12,7 +28,6 @@ export interface Subscription {
     status: 'active' | 'expired' | 'cancelled';
 }
 
-// Types
 export interface Salon {
     id: string;
     name: string;
@@ -141,7 +156,7 @@ const saveObjectToStorage = <T>(key: string, data: T): void => {
 
 // Database service
 export const db = {
-    // Auth
+    // Auth - Hardened with strict session validation
     auth: {
         getCurrentUser: (): User | null => {
             return getObjectFromStorage<User>(STORAGE_KEYS.AUTH);
@@ -152,9 +167,93 @@ export const db = {
             return ADMIN_EMAILS.includes(email);
         },
 
+        // Create a new session with expiry
+        createSession: (userId: string, email: string, isAdmin: boolean): Session => {
+            const now = new Date();
+            const expiresAt = new Date(now.getTime() + config.sessionMaxAgeHours * 60 * 60 * 1000);
+
+            const session: Session = {
+                userId,
+                email,
+                isAdmin,
+                loginTime: now.toISOString(),
+                expiresAt: expiresAt.toISOString(),
+                version: config.sessionVersion,
+            };
+
+            if (typeof window !== 'undefined') {
+                localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
+            }
+
+            return session;
+        },
+
+        // Get current session (if valid)
+        getSession: (): Session | null => {
+            if (typeof window === 'undefined') return null;
+
+            const sessionStr = localStorage.getItem(STORAGE_KEYS.SESSION);
+            if (!sessionStr) return null;
+
+            try {
+                const session: Session = JSON.parse(sessionStr);
+                return session;
+            } catch {
+                return null;
+            }
+        },
+
+        // Validate session - checks expiry and version
+        validateSession: (): { valid: boolean; reason?: string } => {
+            if (typeof window === 'undefined') return { valid: false, reason: 'SSR' };
+
+            const session = db.auth.getSession();
+            if (!session) {
+                return { valid: false, reason: 'No session found' };
+            }
+
+            // Check version - invalidate old sessions
+            if (session.version !== config.sessionVersion) {
+                db.auth.logout();
+                return { valid: false, reason: 'Session version mismatch - please login again' };
+            }
+
+            // Check expiry
+            const now = new Date();
+            const expiresAt = new Date(session.expiresAt);
+            if (now > expiresAt) {
+                db.auth.logout();
+                return { valid: false, reason: 'Session expired - please login again' };
+            }
+
+            // Verify user still exists
+            const user = getObjectFromStorage<User>(STORAGE_KEYS.AUTH);
+            if (!user || user.id !== session.userId) {
+                db.auth.logout();
+                return { valid: false, reason: 'User session invalid' };
+            }
+
+            return { valid: true };
+        },
+
         login: (email: string, password: string): { success: boolean; message?: string; user?: User } => {
+            // Clear any existing stale session first
+            db.auth.logout();
+
+            // Validate inputs strictly
+            if (!email || !password) {
+                return { success: false, message: 'Email and password are required' };
+            }
+
+            const trimmedEmail = email.trim().toLowerCase();
+            const trimmedPassword = password.trim();
+
+            if (!trimmedEmail || !trimmedPassword) {
+                return { success: false, message: 'Email and password are required' };
+            }
+
             // Check for admin credentials first
-            if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+            if (trimmedEmail === ADMIN_CREDENTIALS.email && trimmedPassword === ADMIN_CREDENTIALS.password) {
                 const adminUser: User = {
                     id: 'admin-001',
                     salonId: 'admin-salon',
@@ -168,66 +267,65 @@ export const db = {
                 // Save admin user
                 saveObjectToStorage(STORAGE_KEYS.AUTH, adminUser);
 
-                // Set session
+                // Create proper session with expiry
+                db.auth.createSession(adminUser.id, adminUser.email, true);
+
+                // Mark onboarding complete for admin
                 if (typeof window !== 'undefined') {
-                    localStorage.setItem('salonx_session', JSON.stringify({
-                        userId: adminUser.id,
-                        email: adminUser.email,
-                        isAdmin: true,
-                        loginTime: new Date().toISOString()
-                    }));
                     localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
                 }
 
+                console.log('[Auth] Admin login successful:', adminUser.email);
                 return { success: true, user: adminUser };
             }
 
             const auth = getObjectFromStorage<User>(STORAGE_KEYS.AUTH);
 
             if (!auth) {
-                return { success: false, message: "No account found. Please create an account first." };
+                return { success: false, message: 'No account found. Please create an account first.' };
             }
 
-            if (auth.email !== email) {
-                return { success: false, message: "Invalid email address" };
+            if (auth.email.toLowerCase() !== trimmedEmail) {
+                return { success: false, message: 'Invalid email address' };
             }
 
-            if (auth.password !== password) {
-                return { success: false, message: "Incorrect password" };
+            if (auth.password !== trimmedPassword) {
+                return { success: false, message: 'Incorrect password' };
+            }
+
+            // Check if onboarding is complete before allowing login
+            if (!db.auth.isOnboardingComplete()) {
+                return { success: false, message: 'Please complete onboarding first.' };
             }
 
             // Check if non-admin user - they need valid subscription
-            if (!db.auth.isAdmin(email)) {
+            if (!db.auth.isAdmin(trimmedEmail)) {
                 const subscription = db.subscription.get();
                 if (!subscription || subscription.status !== 'active') {
-                    return { success: false, message: "Your subscription has expired. Please subscribe to continue." };
+                    return { success: false, message: 'Your subscription has expired. Please subscribe to continue.' };
                 }
             }
 
-            // Set session
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('salonx_session', JSON.stringify({
-                    userId: auth.id,
-                    email: auth.email,
-                    isAdmin: db.auth.isAdmin(email),
-                    loginTime: new Date().toISOString()
-                }));
-            }
+            // Create proper session with expiry
+            db.auth.createSession(auth.id, auth.email, db.auth.isAdmin(trimmedEmail));
 
+            console.log('[Auth] Login successful:', auth.email);
             return { success: true, user: auth };
         },
 
         logout: (): void => {
             if (typeof window !== 'undefined') {
+                localStorage.removeItem(STORAGE_KEYS.SESSION);
+                // Also remove the old session key if it exists
                 localStorage.removeItem('salonx_session');
+                console.log('[Auth] Logged out');
             }
         },
 
+        // Strict authentication check - validates session
         isAuthenticated: (): boolean => {
-            if (typeof window === 'undefined') return false;
-            const session = localStorage.getItem('salonx_session');
-            const user = getObjectFromStorage<User>(STORAGE_KEYS.AUTH);
-            return !!(session && user);
+            const validation = db.auth.validateSession();
+            return validation.valid;
         },
 
         isOnboardingComplete: (): boolean => {
@@ -235,17 +333,34 @@ export const db = {
             return localStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE) === 'true';
         },
 
+        // Get onboarding state
+        getOnboardingState: (): OnboardingState | null => {
+            return getObjectFromStorage<OnboardingState>(STORAGE_KEYS.ONBOARDING_STATE);
+        },
+
+        // Update onboarding state
+        setOnboardingState: (state: OnboardingState): void => {
+            saveObjectToStorage(STORAGE_KEYS.ONBOARDING_STATE, state);
+        },
+
         // Check if current user can access dashboard (has valid subscription/trial or is admin)
         canAccessDashboard: (): { allowed: boolean; reason?: string; daysRemaining?: number } => {
-            if (typeof window === 'undefined') return { allowed: false };
+            // First validate session
+            const validation = db.auth.validateSession();
+            if (!validation.valid) {
+                return { allowed: false, reason: validation.reason };
+            }
 
-            const session = localStorage.getItem('salonx_session');
-            if (!session) return { allowed: false, reason: 'Not authenticated' };
+            // Then check onboarding
+            if (!db.auth.isOnboardingComplete()) {
+                return { allowed: false, reason: 'Onboarding not complete' };
+            }
 
-            const sessionData = JSON.parse(session);
+            const session = db.auth.getSession();
+            if (!session) return { allowed: false, reason: 'No session' };
 
             // Admins always have access
-            if (sessionData.isAdmin) {
+            if (session.isAdmin) {
                 return { allowed: true };
             }
 
@@ -603,6 +718,8 @@ export const db = {
     ): { salon: Salon; user: User } => {
         const isAdmin = db.auth.isAdmin(admin.email);
 
+        console.log('[Onboarding] Completing onboarding for:', admin.email, 'isAdmin:', isAdmin);
+
         // Create salon
         const createdSalon = db.salon.create(salon);
 
@@ -618,15 +735,8 @@ export const db = {
         };
         saveObjectToStorage(STORAGE_KEYS.AUTH, user);
 
-        // Auto-login: Create session with isAdmin flag
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('salonx_session', JSON.stringify({
-                userId: user.id,
-                email: user.email,
-                isAdmin: isAdmin,
-                loginTime: new Date().toISOString()
-            }));
-        }
+        // Auto-login: Create proper session with expiry
+        db.auth.createSession(user.id, user.email, isAdmin);
 
         // Start 14-day trial (admins always get trial for testing purposes)
         if (isAdmin) {
@@ -646,6 +756,15 @@ export const db = {
             localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
         }
 
+        // Update onboarding state
+        db.auth.setOnboardingState({
+            status: 'completed',
+            currentStep: 7,
+            lastUpdated: new Date().toISOString(),
+            salonId: createdSalon.id,
+        });
+
+        console.log('[Onboarding] Completed successfully for salon:', createdSalon.id);
         return { salon: createdSalon, user };
     },
 

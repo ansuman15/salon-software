@@ -276,6 +276,200 @@
     color: var(--text-inverse) !important;
 }
 
+/* Status Badge */
+.statusBadge {
+    padding: 4px 10px;
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+}
+
+.statusBadge.active {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.statusBadge.inactive {
+    background: var(--error-light);
+    color: var(--error);
+}
+
+/* Card Actions */
+.editBtn {
+    flex: 1;
+    padding: var(--space-2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.editBtn:hover {
+    background: var(--text-primary);
+    color: var(--text-inverse);
+    border-color: var(--text-primary);
+}
+
+/* Form Styling */
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.formGroup label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+}
+
+.formRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+}
+
+/* Profile Modal */
+.profileModal {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.profileHeader {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    margin-bottom: var(--space-5);
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.profileAvatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-champagne) 0%, var(--accent-rose) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    font-weight: var(--font-bold);
+    flex-shrink: 0;
+}
+
+.profileInfo h2 {
+    margin: 0 0 var(--space-1);
+    font-size: 1.25rem;
+}
+
+.profileRole {
+    margin: 0 0 var(--space-2);
+    color: var(--text-secondary);
+}
+
+.profileDetails {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+}
+
+.detailRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+}
+
+.detailLabel {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.detailValue {
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+}
+
+.profileActions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.profileActions button {
+    flex: 1;
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.deleteBtn {
+    background: transparent;
+    border: 1px solid var(--error);
+    color: var(--error);
+}
+
+.deleteBtn:hover {
+    background: var(--error);
+    color: white;
+}
+
+/* Delete Confirmation */
+.deleteConfirm {
+    margin-top: var(--space-5);
+    padding: var(--space-4);
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-lg);
+}
+
+.deleteConfirm p {
+    margin: 0 0 var(--space-2);
+    text-align: center;
+}
+
+.deleteWarning {
+    font-size: var(--text-sm);
+    color: var(--text-muted) !important;
+}
+
+.deleteActions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+}
+
+.deleteActions button {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.deleteActions button:first-child {
+    background: white;
+    border: 1px solid var(--border-light);
+}
+
+.confirmDeleteBtn {
+    background: #dc2626 !important;
+    border: none !important;
+    color: white !important;
+}
+
 @media (max-width: 768px) {
     .container {
         padding: var(--space-4);
@@ -289,5 +483,18 @@
     .filters {
         width: 100%;
         overflow-x: auto;
+    }
+
+    .formRow {
+        grid-template-columns: 1fr;
+    }
+
+    .profileHeader {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .profileActions {
+        flex-direction: column;
     }
 }
