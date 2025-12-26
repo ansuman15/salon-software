@@ -153,8 +153,9 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         console.error('[Admin Salons API] Error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create salon';
         return NextResponse.json(
-            { error: 'Failed to create salon' },
+            { error: errorMessage, details: String(error) },
             { status: 500 }
         );
     }
