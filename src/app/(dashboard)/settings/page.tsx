@@ -1,61 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Header from "@/components/layout/Header";
-import { db, Salon, Settings } from "@/lib/database";
+import { useSession } from "@/lib/SessionContext";
 import styles from "./page.module.css";
 
 export default function SettingsPage() {
-    const router = useRouter();
-    const [isLoading, setIsLoading] = useState(true);
+    const { session, loading } = useSession();
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-    const [salon, setSalon] = useState<Salon | null>(null);
-    const [settings, setSettings] = useState<Settings | null>(null);
+    // Form state with defaults
+    const [formData, setFormData] = useState({
+        name: '',
+        phone: '',
+        city: '',
+        currency: 'INR',
+        openingTime: '09:00',
+        closingTime: '21:00',
+        workingDays: [1, 2, 3, 4, 5, 6], // Mon-Sat
+        gstPercentage: 18,
+        invoicePrefix: 'INV',
+        whatsappEnabled: false,
+        whatsappNumber: '',
+    });
 
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-    useEffect(() => {
-        setSalon(db.salon.get());
-        setSettings(db.settings.get());
-        setIsLoading(false);
-    }, [router]);
-
-    const handleSalonChange = (field: keyof Salon, value: string) => {
-        if (!salon) return;
-        setSalon({ ...salon, [field]: value });
-    };
-
-    const handleSettingsChange = (field: keyof Settings, value: any) => {
-        if (!settings) return;
-        setSettings({ ...settings, [field]: value });
+    const handleChange = (field: string, value: any) => {
+        setFormData({ ...formData, [field]: value });
     };
 
     const toggleDay = (dayIndex: number) => {
-        if (!settings) return;
-        const newDays = settings.workingDays.includes(dayIndex)
-            ? settings.workingDays.filter(d => d !== dayIndex)
-            : [...settings.workingDays, dayIndex].sort();
-        setSettings({ ...settings, workingDays: newDays });
+        const newDays = formData.workingDays.includes(dayIndex)
+            ? formData.workingDays.filter(d => d !== dayIndex)
+            : [...formData.workingDays, dayIndex].sort();
+        setFormData({ ...formData, workingDays: newDays });
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setSaveStatus('saving');
 
-        if (salon) {
-            db.salon.update(salon);
-        }
-
-        if (settings) {
-            db.settings.save(settings);
-        }
-
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
+        // TODO: Implement API call to update settings in Supabase
+        // For now, just show saved status
+        setTimeout(() => {
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        }, 500);
     };
 
-    if (isLoading || !salon || !settings) {
+    if (loading) {
         return <div className={styles.loading}><div className={styles.spinner}></div></div>;
     }
 
@@ -72,31 +65,34 @@ export default function SettingsPage() {
                             <label>Salon Name</label>
                             <input
                                 type="text"
-                                value={salon.name}
-                                onChange={e => handleSalonChange('name', e.target.value)}
+                                value={session?.salon?.name || formData.name}
+                                onChange={e => handleChange('name', e.target.value)}
+                                placeholder="Enter salon name"
                             />
                         </div>
                         <div className={styles.inputGroup}>
                             <label>Phone</label>
                             <input
                                 type="tel"
-                                value={salon.phone}
-                                onChange={e => handleSalonChange('phone', e.target.value)}
+                                value={formData.phone}
+                                onChange={e => handleChange('phone', e.target.value)}
+                                placeholder="+91 98765 43210"
                             />
                         </div>
                         <div className={styles.inputGroup}>
                             <label>City</label>
                             <input
                                 type="text"
-                                value={salon.city}
-                                onChange={e => handleSalonChange('city', e.target.value)}
+                                value={formData.city}
+                                onChange={e => handleChange('city', e.target.value)}
+                                placeholder="Enter city"
                             />
                         </div>
                         <div className={styles.inputGroup}>
                             <label>Currency</label>
                             <select
-                                value={salon.currency}
-                                onChange={e => handleSalonChange('currency', e.target.value)}
+                                value={formData.currency}
+                                onChange={e => handleChange('currency', e.target.value)}
                             >
                                 <option value="INR">INR (₹)</option>
                                 <option value="USD">USD ($)</option>
@@ -114,16 +110,16 @@ export default function SettingsPage() {
                             <label>Opening Time</label>
                             <input
                                 type="time"
-                                value={settings.openingTime}
-                                onChange={e => handleSettingsChange('openingTime', e.target.value)}
+                                value={formData.openingTime}
+                                onChange={e => handleChange('openingTime', e.target.value)}
                             />
                         </div>
                         <div className={styles.inputGroup}>
                             <label>Closing Time</label>
                             <input
                                 type="time"
-                                value={settings.closingTime}
-                                onChange={e => handleSettingsChange('closingTime', e.target.value)}
+                                value={formData.closingTime}
+                                onChange={e => handleChange('closingTime', e.target.value)}
                             />
                         </div>
                     </div>
@@ -134,7 +130,7 @@ export default function SettingsPage() {
                                 <button
                                     key={day}
                                     type="button"
-                                    className={`${styles.dayBtn} ${settings.workingDays.includes(idx) ? styles.active : ''}`}
+                                    className={`${styles.dayBtn} ${formData.workingDays.includes(idx) ? styles.active : ''}`}
                                     onClick={() => toggleDay(idx)}
                                 >
                                     {day}
@@ -152,8 +148,8 @@ export default function SettingsPage() {
                             <label>GST Percentage (%)</label>
                             <input
                                 type="number"
-                                value={settings.gstPercentage}
-                                onChange={e => handleSettingsChange('gstPercentage', Number(e.target.value))}
+                                value={formData.gstPercentage}
+                                onChange={e => handleChange('gstPercentage', Number(e.target.value))}
                                 min={0}
                                 max={100}
                             />
@@ -162,8 +158,8 @@ export default function SettingsPage() {
                             <label>Invoice Prefix</label>
                             <input
                                 type="text"
-                                value={settings.invoicePrefix}
-                                onChange={e => handleSettingsChange('invoicePrefix', e.target.value)}
+                                value={formData.invoicePrefix}
+                                onChange={e => handleChange('invoicePrefix', e.target.value)}
                             />
                         </div>
                     </div>
@@ -179,19 +175,19 @@ export default function SettingsPage() {
                         </div>
                         <button
                             type="button"
-                            className={`${styles.toggle} ${settings.whatsappEnabled ? styles.on : ''}`}
-                            onClick={() => handleSettingsChange('whatsappEnabled', !settings.whatsappEnabled)}
+                            className={`${styles.toggle} ${formData.whatsappEnabled ? styles.on : ''}`}
+                            onClick={() => handleChange('whatsappEnabled', !formData.whatsappEnabled)}
                         >
                             <span className={styles.toggleKnob}></span>
                         </button>
                     </div>
-                    {settings.whatsappEnabled && (
+                    {formData.whatsappEnabled && (
                         <div className={styles.inputGroup}>
                             <label>WhatsApp Business Number</label>
                             <input
                                 type="tel"
-                                value={settings.whatsappNumber || ''}
-                                onChange={e => handleSettingsChange('whatsappNumber', e.target.value)}
+                                value={formData.whatsappNumber}
+                                onChange={e => handleChange('whatsappNumber', e.target.value)}
                                 placeholder="+91 98765 43210"
                             />
                         </div>
