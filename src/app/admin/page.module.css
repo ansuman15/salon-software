@@ -1,7 +1,7 @@
 .container {
     min-height: 100vh;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    color: white;
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .loading {
@@ -14,8 +14,8 @@
 .spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid rgba(255, 255, 255, 0.2);
-    border-top-color: #e94560;
+    border: 3px solid var(--border-light);
+    border-top-color: var(--accent-rose);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -28,8 +28,8 @@
 
 .header {
     padding: 2rem 3rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -39,16 +39,17 @@
     font-size: 1.75rem;
     font-weight: 700;
     margin: 0 0 0.25rem;
+    color: var(--text-primary);
 }
 
 .headerContent p {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-muted);
     margin: 0;
 }
 
 .createBtn {
-    background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
-    color: white;
+    background: var(--text-primary);
+    color: var(--text-inverse);
     border: none;
     padding: 0.875rem 1.5rem;
     border-radius: 10px;
@@ -59,7 +60,7 @@
 
 .createBtn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(233, 69, 96, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 
 .main {
@@ -69,26 +70,26 @@
 .section h2 {
     font-size: 1.25rem;
     margin: 0 0 1.5rem;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--text-primary);
 }
 
 .empty {
     text-align: center;
     padding: 3rem;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-card);
     border-radius: 16px;
-    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border: 1px dashed var(--border-medium);
 }
 
 .empty p {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-muted);
     margin: 0 0 1rem;
 }
 
 .empty button {
     background: transparent;
-    border: 1px solid #e94560;
-    color: #e94560;
+    border: 1px solid var(--accent-rose);
+    color: var(--accent-rose);
     padding: 0.75rem 1.25rem;
     border-radius: 8px;
     cursor: pointer;
@@ -101,16 +102,17 @@
 }
 
 .salonCard {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
     border-radius: 16px;
     padding: 1.5rem;
     transition: all 0.2s;
+    box-shadow: var(--shadow-card);
 }
 
 .salonCard:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
 }
 
 .salonHeader {
@@ -123,6 +125,7 @@
 .salonHeader h3 {
     font-size: 1.1rem;
     margin: 0;
+    color: var(--text-primary);
 }
 
 .status {
@@ -134,22 +137,22 @@
 }
 
 .status.active {
-    background: rgba(16, 185, 129, 0.2);
-    color: #10b981;
+    background: var(--success-light);
+    color: var(--success);
 }
 
 .status.inactive {
-    background: rgba(245, 158, 11, 0.2);
-    color: #f59e0b;
+    background: var(--warning-light);
+    color: #A67D3A;
 }
 
 .status.suspended {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+    background: var(--error-light);
+    color: var(--error);
 }
 
 .email {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-secondary);
     font-size: 0.9rem;
     margin: 0 0 1rem;
 }
@@ -159,7 +162,7 @@
     flex-direction: column;
     gap: 0.25rem;
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted);
     margin-bottom: 1rem;
 }
 
@@ -171,9 +174,9 @@
 .actionBtn {
     flex: 1;
     padding: 0.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: transparent;
-    color: white;
+    border: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
     border-radius: 8px;
     font-size: 0.8rem;
     cursor: pointer;
@@ -181,14 +184,16 @@
 }
 
 .actionBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
 }
 
 /* Modal */
 .modalOverlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(45, 42, 38, 0.5);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -197,18 +202,20 @@
 }
 
 .modal {
-    background: #1a1a2e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
     border-radius: 20px;
     padding: 2rem;
     width: 100%;
     max-width: 480px;
+    box-shadow: var(--shadow-lg);
 }
 
 .modal h2 {
     font-size: 1.5rem;
     margin: 0 0 1.5rem;
     text-align: center;
+    color: var(--text-primary);
 }
 
 .field {
@@ -219,26 +226,26 @@
     display: block;
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-secondary);
 }
 
 .field input {
     width: 100%;
     padding: 0.875rem 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
     border-radius: 10px;
-    color: white;
+    color: var(--text-primary);
     font-size: 1rem;
 }
 
 .field input:focus {
     outline: none;
-    border-color: #e94560;
+    border-color: var(--text-primary);
 }
 
 .field input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-muted);
 }
 
 .row {
@@ -248,9 +255,9 @@
 }
 
 .error {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    color: #fca5a5;
+    background: var(--error-light);
+    border: 1px solid var(--error);
+    color: var(--error);
     padding: 0.75rem 1rem;
     border-radius: 10px;
     margin-bottom: 1rem;
@@ -266,19 +273,23 @@
 .cancelBtn {
     flex: 1;
     padding: 0.875rem;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
     border-radius: 10px;
     cursor: pointer;
+}
+
+.cancelBtn:hover {
+    background: var(--bg-tertiary);
 }
 
 .submitBtn {
     flex: 2;
     padding: 0.875rem;
-    background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+    background: var(--text-primary);
     border: none;
-    color: white;
+    color: var(--text-inverse);
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
@@ -291,8 +302,8 @@
 
 /* Key Display */
 .keyDisplay {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: var(--success-light);
+    border: 1px solid var(--success);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1rem;
@@ -301,7 +312,7 @@
 .keyDisplay label {
     display: block;
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--text-secondary);
     margin-bottom: 0.5rem;
 }
 
@@ -312,18 +323,18 @@
 
 .keyBox code {
     flex: 1;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--bg-secondary);
     padding: 0.875rem 1rem;
     border-radius: 8px;
     font-family: monospace;
     font-size: 1.1rem;
     letter-spacing: 1px;
-    color: #10b981;
+    color: var(--success);
 }
 
 .keyBox button {
     padding: 0.875rem 1rem;
-    background: #10b981;
+    background: var(--success);
     border: none;
     border-radius: 8px;
     color: white;
@@ -333,14 +344,14 @@
 
 .keyExpiry {
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-muted);
     margin: 0.75rem 0 0;
 }
 
 .warning {
-    background: rgba(245, 158, 11, 0.15);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    color: #fcd34d;
+    background: var(--warning-light);
+    border: 1px solid var(--warning);
+    color: #A67D3A;
     padding: 1rem;
     border-radius: 10px;
     font-size: 0.9rem;
@@ -350,16 +361,16 @@
 .doneBtn {
     width: 100%;
     padding: 0.875rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
 }
 
 .doneBtn:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--bg-tertiary);
 }
 
 /* Tabs */
@@ -368,13 +379,14 @@
     gap: 0.5rem;
     padding: 0 3rem;
     margin-top: 1rem;
+    background: var(--bg-card);
 }
 
 .tab {
     padding: 0.875rem 1.5rem;
     background: transparent;
     border: none;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-muted);
     font-size: 0.95rem;
     font-weight: 500;
     cursor: pointer;
@@ -383,18 +395,18 @@
 }
 
 .tab:hover {
-    color: white;
+    color: var(--text-primary);
 }
 
 .activeTab {
-    color: white;
-    border-bottom-color: #e94560;
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-rose);
 }
 
 /* Leads Table */
 .leadsTable {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
     border-radius: 16px;
     overflow: hidden;
 }
@@ -407,8 +419,8 @@
 .leadsTable th {
     text-align: left;
     padding: 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.7);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
     font-size: 0.85rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -417,12 +429,13 @@
 
 .leadsTable td {
     padding: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid var(--border-light);
     vertical-align: top;
+    color: var(--text-primary);
 }
 
 .leadsTable tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--bg-secondary);
 }
 
 .leadsTable strong {
@@ -431,28 +444,28 @@
 }
 
 .leadsTable small {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted);
     font-size: 0.8rem;
 }
 
 .leadsTable select {
     padding: 0.5rem 0.75rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
-    color: white;
+    color: var(--text-primary);
     font-size: 0.85rem;
     cursor: pointer;
 }
 
 .leadsTable select:focus {
     outline: none;
-    border-color: #e94560;
+    border-color: var(--text-primary);
 }
 
 .convertBtn {
     padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: var(--success);
     border: none;
     border-radius: 6px;
     color: white;
@@ -464,7 +477,7 @@
 
 .convertBtn:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 4px 12px rgba(124, 176, 124, 0.3);
 }
 
 .convertBtn:disabled {
