@@ -162,8 +162,9 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         console.error('[Login API] Error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
         return NextResponse.json(
-            { error: 'An unexpected error occurred. Please try again.' },
+            { error: `Login failed: ${errorMessage}` },
             { status: 500 }
         );
     }

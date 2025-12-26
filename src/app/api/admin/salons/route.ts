@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Create salon (inactive by default)
+        // Create salon (active since we're generating activation key)
         const { data: salon, error: salonError } = await supabase
             .from('salons')
             .insert({
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
                 owner_email: ownerEmail.toLowerCase(),
                 phone: phone || null,
                 city: city || null,
-                status: 'inactive',
+                status: 'active', // Active - they have an activation key
             })
             .select()
             .single();
