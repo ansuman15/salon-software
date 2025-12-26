@@ -1,5 +1,6 @@
 "use client";
 
+// Updated: 2024-12-26 - Added Attendance and Products to sidebar
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
