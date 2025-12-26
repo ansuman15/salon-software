@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
-import { db } from "@/lib/database";
 import styles from "./layout.module.css";
 
 export default function DashboardLayout({
@@ -19,39 +18,28 @@ export default function DashboardLayout({
         const checkAccess = async () => {
             console.log('[Dashboard] Checking access...');
 
-            // Check session via API first (for cookie-based auth)
+            // Check session via API (cookie-based auth)
             try {
                 const res = await fetch('/api/auth/session');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.authenticated) {
-                        console.log('[Dashboard] Session valid via API');
-                        setIsChecking(false);
-                        return;
-                    } else if (data.reason) {
-                        console.log('[Dashboard] Session invalid:', data.reason);
-                        setAuthError(data.reason);
-                        // Redirect with error message
-                        const errorParam = encodeURIComponent(data.reason);
-                        router.replace(`/login?error=${errorParam}`);
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.log('[Dashboard] API session check failed, trying local');
-            }
+                const data = await res.json();
 
-            // Fallback to local session check (for dev mode)
-            const sessionValidation = db.auth.validateSession();
-            if (!sessionValidation.valid) {
-                console.log('[Dashboard] Session invalid:', sessionValidation.reason);
-                setAuthError(sessionValidation.reason || 'Session invalid');
-                router.replace("/login");
+                if (res.ok && data.authenticated) {
+                    console.log('[Dashboard] Session valid');
+                    setIsChecking(false);
+                    return;
+                }
+
+                // Not authenticated - redirect to login
+                console.log('[Dashboard] Not authenticated:', data.reason || 'No session');
+                const errorMsg = data.reason || 'Please login to continue';
+                setAuthError(errorMsg);
+                router.replace(`/login?error=${encodeURIComponent(errorMsg)}`);
+                return;
+            } catch (e) {
+                console.error('[Dashboard] Session check failed:', e);
+                router.replace('/login?error=Session%20check%20failed');
                 return;
             }
-
-            console.log('[Dashboard] Access granted');
-            setIsChecking(false);
         };
 
         checkAccess();
