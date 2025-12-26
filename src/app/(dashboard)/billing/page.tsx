@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import Header from "@/components/layout/Header";
 import Invoice from "@/components/Invoice";
+import { useSession } from "@/lib/SessionContext";
+import { useToast } from "@/components/ui/Toast";
 import styles from "./page.module.css";
 
 interface Customer {
@@ -17,7 +19,8 @@ interface Service {
     name: string;
     price: number;
     durationMinutes: number;
-    is_active?: boolean;
+    category?: string;
+    isActive?: boolean;
 }
 
 interface CouponResult {
@@ -58,6 +61,8 @@ interface BillData {
 }
 
 export default function BillingPage() {
+    const { session } = useSession();
+    const toast = useToast();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -103,17 +108,19 @@ export default function BillingPage() {
             const customersRes = await fetch('/api/customers');
             if (customersRes.ok) {
                 const data = await customersRes.json();
-                setCustomers(data.data || []);
+                setCustomers(data.customers || []);
             }
 
             // Fetch services  
             const servicesRes = await fetch('/api/services');
             if (servicesRes.ok) {
                 const data = await servicesRes.json();
-                setServices((data.data || []).filter((s: Service) => s.is_active !== false));
+                // Filter only active services
+                const activeServices = (data.services || []).filter((s: Service) => s.isActive !== false);
+                setServices(activeServices);
             }
 
-            // Fetch salon settings
+            // Fetch salon settings using session
             const salonRes = await fetch('/api/salon');
             if (salonRes.ok) {
                 const data = await salonRes.json();
@@ -130,6 +137,7 @@ export default function BillingPage() {
             }
         } catch (err) {
             console.error('Failed to load data:', err);
+            toast.error('Failed to load billing data');
         } finally {
             setIsLoading(false);
         }
