@@ -8,6 +8,8 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 import { verifyActivationKey, isValidKeyFormat, checkRateLimit, resetRateLimit, AUTH_ACTIONS } from '@/lib/authUtils';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
     try {
         const { email, activationKey } = await request.json();

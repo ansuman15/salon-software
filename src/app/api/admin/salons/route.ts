@@ -9,6 +9,8 @@ import { generateActivationKey, hashActivationKey, getKeyExpiryDate, AUTH_ACTION
 import { ADMIN_EMAILS } from '@/lib/config';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 // Verify admin access
 async function verifyAdmin(): Promise<{ isAdmin: boolean; email?: string }> {
     const cookieStore = await cookies();
@@ -18,7 +20,8 @@ async function verifyAdmin(): Promise<{ isAdmin: boolean; email?: string }> {
 
     try {
         const session = JSON.parse(sessionCookie.value);
-        if (ADMIN_EMAILS.includes(session.email)) {
+        // Check for isAdmin flag OR email in admin list
+        if (session.isAdmin || ADMIN_EMAILS.includes(session.email)) {
             return { isAdmin: true, email: session.email };
         }
     } catch {
@@ -121,14 +124,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: keyError.message }, { status: 500 });
         }
 
-        // Log admin action
-        await supabase.from('admin_audit_logs').insert({
-            admin_id: '00000000-0000-0000-0000-000000000000',
-            action: AUTH_ACTIONS.SALON_CREATED,
-            target_type: 'salon',
-            target_id: salon.id,
-            metadata: { admin_email: adminEmail, salon_name: name },
-        });
+        // Log admin action (optional - don't fail if table doesn't exist)
+        try {
+            await supabase.from('admin_audit_logs').insert({
+                admin_id: '00000000-0000-0000-0000-000000000000',
+                action: AUTH_ACTIONS.SALON_CREATED,
+                target_type: 'salon',
+                target_id: salon.id,
+                metadata: { admin_email: adminEmail, salon_name: name },
+            });
+        } catch {
+            // Audit log is optional, don't fail salon creation
+        }
 
         // Return salon with PLAIN KEY (shown only once!)
         return NextResponse.json({

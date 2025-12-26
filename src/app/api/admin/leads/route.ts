@@ -7,6 +7,8 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 import { ADMIN_EMAILS } from '@/lib/config';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 // Verify admin access
 async function verifyAdmin(): Promise<{ isAdmin: boolean; email?: string }> {
     const cookieStore = await cookies();
@@ -16,7 +18,8 @@ async function verifyAdmin(): Promise<{ isAdmin: boolean; email?: string }> {
 
     try {
         const session = JSON.parse(sessionCookie.value);
-        if (ADMIN_EMAILS.includes(session.email)) {
+        // Check for isAdmin flag OR email in admin list
+        if (session.isAdmin || ADMIN_EMAILS.includes(session.email)) {
             return { isAdmin: true, email: session.email };
         }
     } catch {
