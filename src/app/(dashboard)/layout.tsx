@@ -1,55 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { SessionProvider, useSession } from "@/lib/SessionContext";
 import Sidebar from "@/components/layout/Sidebar";
 import styles from "./layout.module.css";
 
-export default function DashboardLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+function DashboardContent({ children }: { children: React.ReactNode }) {
     const router = useRouter();
-    const [isChecking, setIsChecking] = useState(true);
-    const [authError, setAuthError] = useState<string | null>(null);
+    const { session, loading, error } = useSession();
 
     useEffect(() => {
-        const checkAccess = async () => {
-            console.log('[Dashboard] Checking access...');
+        // Redirect to login if not authenticated
+        if (!loading && (!session?.authenticated)) {
+            const errorMsg = error || 'Please login to continue';
+            router.replace(`/login?error=${encodeURIComponent(errorMsg)}`);
+        }
+    }, [session, loading, error, router]);
 
-            // Check session via API (cookie-based auth)
-            try {
-                const res = await fetch('/api/auth/session');
-                const data = await res.json();
-
-                if (res.ok && data.authenticated) {
-                    console.log('[Dashboard] Session valid');
-                    setIsChecking(false);
-                    return;
-                }
-
-                // Not authenticated - redirect to login
-                console.log('[Dashboard] Not authenticated:', data.reason || 'No session');
-                const errorMsg = data.reason || 'Please login to continue';
-                setAuthError(errorMsg);
-                router.replace(`/login?error=${encodeURIComponent(errorMsg)}`);
-                return;
-            } catch (e) {
-                console.error('[Dashboard] Session check failed:', e);
-                router.replace('/login?error=Session%20check%20failed');
-                return;
-            }
-        };
-
-        checkAccess();
-    }, [router]);
-
-    if (isChecking) {
+    if (loading) {
         return (
             <div className={styles.loading}>
                 <div className={styles.spinner}></div>
-                {authError && <p className={styles.authError}>{authError}</p>}
+            </div>
+        );
+    }
+
+    if (!session?.authenticated) {
+        return (
+            <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                <p className={styles.authError}>Redirecting to login...</p>
             </div>
         );
     }
@@ -61,5 +42,17 @@ export default function DashboardLayout({
                 {children}
             </main>
         </div>
+    );
+}
+
+export default function DashboardLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <SessionProvider>
+            <DashboardContent>{children}</DashboardContent>
+        </SessionProvider>
     );
 }

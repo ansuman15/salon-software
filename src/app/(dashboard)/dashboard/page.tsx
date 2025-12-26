@@ -1,69 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import StatsCard from "@/components/dashboard/StatsCard";
 import SalonCard from "@/components/dashboard/SalonCard";
 import BookingsTable from "@/components/dashboard/BookingsTable";
 import QuickActions from "@/components/dashboard/QuickActions";
 import RevenueChart from "@/components/dashboard/RevenueChart";
-import { db, Salon, Customer, Staff, Service, Appointment, Bill } from "@/lib/database";
+import { useSession } from "@/lib/SessionContext";
 import styles from "./page.module.css";
 
-interface DashboardData {
-    salon: Salon | null;
-    customers: Customer[];
-    staff: Staff[];
-    services: Service[];
-    appointments: Appointment[];
-    todayAppointments: Appointment[];
-    todayRevenue: number;
-    weekRevenue: number;
-    monthRevenue: number;
-}
-
 export default function DashboardPage() {
-    const router = useRouter();
-    const [data, setData] = useState<DashboardData>({
-        salon: null,
-        customers: [],
-        staff: [],
-        services: [],
-        appointments: [],
-        todayAppointments: [],
-        todayRevenue: 0,
-        weekRevenue: 0,
-        monthRevenue: 0,
-    });
-    const [isLoading, setIsLoading] = useState(true);
+    const { session, loading } = useSession();
 
-    useEffect(() => {
-        // Load data from localStorage
-        const today = new Date().toISOString().split('T')[0];
-        const salon = db.salon.get();
-        const customers = db.customers.getAll();
-        const staff = db.staff.getAll();
-        const services = db.services.getAll();
-        const appointments = db.appointments.getAll();
-        const todayAppointments = db.appointments.getByDate(today);
-
-        setData({
-            salon,
-            customers,
-            staff: staff.filter(s => s.isActive),
-            services: services.filter(s => s.isActive),
-            appointments,
-            todayAppointments,
-            todayRevenue: db.bills.getTodayRevenue(),
-            weekRevenue: db.bills.getWeekRevenue(),
-            monthRevenue: db.bills.getMonthRevenue(),
-        });
-
-        setIsLoading(false);
-    }, [router]);
-
-    if (isLoading) {
+    if (loading) {
         return (
             <div className={styles.loading}>
                 <div className={styles.spinner}></div>
@@ -71,27 +20,13 @@ export default function DashboardPage() {
         );
     }
 
-    // Helper to get customer/staff/service names
-    const getCustomerName = (id: string) => data.customers.find(c => c.id === id)?.name || 'Unknown';
-    const getStaffName = (id: string) => data.staff.find(s => s.id === id)?.name || 'Unknown';
-    const getServiceNames = (ids: string[]) =>
-        ids.map(id => data.services.find(s => s.id === id)?.name || 'Unknown').join(', ');
-
-    // Transform appointments for the table
-    const tableAppointments = data.todayAppointments.map(apt => ({
-        id: apt.id,
-        employeeName: getStaffName(apt.staffId),
-        service: getServiceNames(apt.serviceIds),
-        status: apt.status,
-        time: apt.startTime,
-        customerName: getCustomerName(apt.customerId),
-    }));
+    const salonName = session?.salon?.name || 'Your Salon';
 
     return (
         <>
             <Header
                 title="Dashboard"
-                subtitle={`Welcome back${data.salon?.name ? `, ${data.salon.name}` : ''}`}
+                subtitle={`Welcome back, ${salonName}`}
             />
 
             <div className={styles.content}>
@@ -99,25 +34,25 @@ export default function DashboardPage() {
                 <div className={styles.statsGrid}>
                     <StatsCard
                         title="Total Clients"
-                        value={data.customers.length.toString()}
+                        value="0"
                         icon="users"
                         variant="rose"
                     />
                     <StatsCard
                         title="Active Services"
-                        value={data.services.length.toString()}
+                        value="0"
                         icon="scissors"
                         variant="champagne"
                     />
                     <StatsCard
                         title="Staff Members"
-                        value={data.staff.length.toString()}
+                        value="0"
                         icon="team"
                         variant="lavender"
                     />
                     <StatsCard
                         title="Today's Appointments"
-                        value={data.todayAppointments.length.toString()}
+                        value="0"
                         icon="calendar"
                         variant="mint"
                     />
@@ -132,23 +67,31 @@ export default function DashboardPage() {
                     <div className={styles.leftColumn}>
                         {/* Bookings Table */}
                         <BookingsTable
-                            appointments={tableAppointments}
-                            customers={data.customers}
-                            staff={data.staff}
-                            services={data.services}
+                            appointments={[]}
+                            customers={[]}
+                            staff={[]}
+                            services={[]}
                         />
 
                         {/* Revenue Chart */}
                         <RevenueChart
-                            todayRevenue={data.todayRevenue}
-                            weekRevenue={data.weekRevenue}
-                            monthRevenue={data.monthRevenue}
+                            todayRevenue={0}
+                            weekRevenue={0}
+                            monthRevenue={0}
                         />
                     </div>
 
                     {/* Right Column */}
                     <div className={styles.rightColumn}>
-                        <SalonCard salon={data.salon} />
+                        <SalonCard salon={session?.salon ? {
+                            id: session.salon.id,
+                            name: session.salon.name,
+                            ownerEmail: session.salon.email,
+                            phone: '',
+                            city: '',
+                            status: 'active' as const,
+                            createdAt: new Date().toISOString(),
+                        } : null} />
                     </div>
                 </div>
             </div>

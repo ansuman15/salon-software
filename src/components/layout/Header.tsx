@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { db, User } from "@/lib/database";
+import { useSession } from "@/lib/SessionContext";
 import styles from "./Header.module.css";
 
 interface HeaderProps {
@@ -25,15 +25,11 @@ const BellIcon = () => (
 );
 
 export default function Header({ title, subtitle }: HeaderProps) {
-    const [user, setUser] = useState<User | null>(null);
+    const { session } = useSession();
     const [searchQuery, setSearchQuery] = useState("");
     const [showNotifications, setShowNotifications] = useState(false);
 
-    useEffect(() => {
-        const currentUser = db.auth.getCurrentUser();
-        setUser(currentUser);
-    }, []);
-
+    const salonName = session?.salon?.name || 'User';
     const getInitials = (name: string) =>
         name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
@@ -83,13 +79,13 @@ export default function Header({ title, subtitle }: HeaderProps) {
                 </div>
 
                 {/* User Profile - Clickable */}
-                <Link href="/profile" className={styles.userSection}>
+                <Link href="/settings" className={styles.userSection}>
                     <div className={styles.userInfo}>
-                        <span className={styles.userName}>{user?.name || 'User'}</span>
-                        <span className={styles.userRole}>{user?.role || 'Owner'}</span>
+                        <span className={styles.userName}>{salonName}</span>
+                        <span className={styles.userRole}>Owner</span>
                     </div>
                     <div className={styles.avatar}>
-                        {user?.name ? getInitials(user.name) : 'U'}
+                        {getInitials(salonName)}
                     </div>
                 </Link>
             </div>

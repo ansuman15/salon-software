@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { db, Salon } from "@/lib/database";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "@/lib/SessionContext";
 import LogoutModal from "./LogoutModal";
 import styles from "./Sidebar.module.css";
 
@@ -109,21 +109,17 @@ const secondaryNavItems = [
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const [salon, setSalon] = useState<Salon | null>(null);
+    const router = useRouter();
+    const { session, logout } = useSession();
     const [showLogoutModal, setShowLogoutModal] = useState(false);
-
-    useEffect(() => {
-        const salonData = db.salon.get();
-        setSalon(salonData);
-    }, []);
 
     const handleLogoutClick = () => {
         setShowLogoutModal(true);
     };
 
-    const handleLogoutConfirm = () => {
-        db.auth.logout();
-        window.location.href = '/';
+    const handleLogoutConfirm = async () => {
+        await logout();
+        router.replace('/');
     };
 
     const handleLogoutCancel = () => {
@@ -133,19 +129,17 @@ export default function Sidebar() {
     const getInitials = (name: string) =>
         name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
 
+    const salonName = session?.salon?.name || 'SalonX';
+
     return (
         <>
             <aside className={styles.sidebar}>
                 {/* Logo */}
                 <div className={styles.logo}>
-                    {salon?.logoUrl ? (
-                        <img src={salon.logoUrl} alt={salon.name} className={styles.logoImage} />
-                    ) : (
-                        <div className={styles.logoPlaceholder}>
-                            {salon?.name ? getInitials(salon.name) : 'SX'}
-                        </div>
-                    )}
-                    <span className={styles.logoText}>{salon?.name || 'SalonX'}</span>
+                    <div className={styles.logoPlaceholder}>
+                        {salonName ? getInitials(salonName) : 'SX'}
+                    </div>
+                    <span className={styles.logoText}>{salonName}</span>
                 </div>
 
                 {/* Main Navigation */}
