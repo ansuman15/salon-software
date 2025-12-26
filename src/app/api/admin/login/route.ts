@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { ADMIN_EMAILS, ADMIN_CREDENTIALS } from '@/lib/config';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/admin/login
  * Direct admin login without needing a salon

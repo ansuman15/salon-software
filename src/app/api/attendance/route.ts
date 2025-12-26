@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 // Configuration
 const LOCK_THRESHOLD_DAYS = 30; // Records older than this cannot be edited by non-admins
 
