@@ -18,10 +18,24 @@ export async function GET(request: NextRequest) {
 
         const session = JSON.parse(sessionCookie.value);
 
-        // Check if session expired
-        if (new Date(session.expiresAt) < new Date()) {
+        // Check if session expired (skip for admin sessions without expiry)
+        if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
             cookieStore.delete('salonx_session');
             return NextResponse.json({ authenticated: false, reason: 'Session expired' });
+        }
+
+        // Handle admin sessions (salonId = 'admin')
+        if (session.isAdmin || session.salonId === 'admin') {
+            return NextResponse.json({
+                authenticated: true,
+                isAdmin: true,
+                email: session.email,
+                salon: {
+                    id: 'admin',
+                    name: session.salonName || 'SalonX Admin',
+                    email: session.email,
+                },
+            });
         }
 
         // Verify salon still exists and is active

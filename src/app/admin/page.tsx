@@ -67,7 +67,11 @@ export default function AdminPage() {
                 const res = await fetch('/api/auth/session');
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.authenticated && ADMIN_EMAILS.includes(data.salon?.email)) {
+                    // Check for admin access - either from salon email or direct admin session
+                    const sessionEmail = data.email || data.salon?.email;
+                    const isAdminSession = data.isAdmin === true;
+
+                    if (data.authenticated && (isAdminSession || ADMIN_EMAILS.includes(sessionEmail))) {
                         setIsAdmin(true);
                         await Promise.all([loadSalons(), loadLeads()]);
                         setIsLoading(false);
