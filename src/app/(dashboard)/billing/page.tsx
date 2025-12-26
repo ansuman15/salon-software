@@ -1,33 +1,139 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
 import Header from "@/components/layout/Header";
-import { db, Customer, Service, Bill } from "@/lib/database";
+import Invoice from "@/components/Invoice";
 import styles from "./page.module.css";
 
+interface Customer {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string;
+}
+
+interface Service {
+    id: string;
+    name: string;
+    price: number;
+    durationMinutes: number;
+    is_active?: boolean;
+}
+
+interface CouponResult {
+    valid: boolean;
+    message: string;
+    coupon_id?: string;
+    discount_type?: string;
+    discount_value?: number;
+    discount_amount?: number;
+}
+
+interface BillData {
+    id: string;
+    invoice_number: string;
+    created_at: string;
+    salon: {
+        name: string;
+        address?: string;
+        phone?: string;
+        email?: string;
+        gst_number?: string;
+    };
+    customer?: Customer;
+    items: Array<{
+        service_name: string;
+        quantity: number;
+        unit_price: number;
+        total_price: number;
+    }>;
+    subtotal: number;
+    discount_percent?: number;
+    discount_amount?: number;
+    coupon_code?: string;
+    tax_percent?: number;
+    tax_amount?: number;
+    final_amount: number;
+    payment_method: string;
+}
+
 export default function BillingPage() {
-    const router = useRouter();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [showSuccess, setShowSuccess] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Bill state
-    const [selectedCustomerId, setSelectedCustomerId] = useState("");
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [discount, setDiscount] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'card'>('cash');
     const [customerSearch, setCustomerSearch] = useState("");
+    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+    // Coupon state
+    const [couponCode, setCouponCode] = useState("");
+    const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
+    const [couponError, setCouponError] = useState("");
+    const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
+    // Invoice state
+    const [showInvoice, setShowInvoice] = useState(false);
+    const [billData, setBillData] = useState<BillData | null>(null);
+    const invoiceRef = useRef<HTMLDivElement>(null);
+
+    // Settings
+    const [gstPercentage, setGstPercentage] = useState(0);
+    const [salonInfo, setSalonInfo] = useState<{
+        name: string;
+        address?: string;
+        phone?: string;
+        email?: string;
+        gst_number?: string;
+    }>({ name: 'SalonX' });
 
     useEffect(() => {
-        setCustomers(db.customers.getAll());
-        setServices(db.services.getAll().filter(s => s.isActive));
-        setIsLoading(false);
-    }, [router]);
+        loadData();
+    }, []);
 
-    const settings = db.settings.get();
-    const gstPercentage = settings?.gstPercentage || 0;
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch customers
+            const customersRes = await fetch('/api/customers');
+            if (customersRes.ok) {
+                const data = await customersRes.json();
+                setCustomers(data.data || []);
+            }
+
+            // Fetch services  
+            const servicesRes = await fetch('/api/services');
+            if (servicesRes.ok) {
+                const data = await servicesRes.json();
+                setServices((data.data || []).filter((s: Service) => s.is_active !== false));
+            }
+
+            // Fetch salon settings
+            const salonRes = await fetch('/api/salon');
+            if (salonRes.ok) {
+                const data = await salonRes.json();
+                if (data.salon) {
+                    setSalonInfo({
+                        name: data.salon.name || 'SalonX',
+                        address: data.salon.address,
+                        phone: data.salon.phone,
+                        email: data.salon.email,
+                        gst_number: data.salon.gst_number,
+                    });
+                    setGstPercentage(data.salon.gst_percentage || 0);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to load data:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const filteredCustomers = customers.filter(c =>
         c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -38,6 +144,11 @@ export default function BillingPage() {
         setSelectedServices(prev =>
             prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
         );
+        // Clear coupon when services change
+        if (appliedCoupon) {
+            setAppliedCoupon(null);
+            setCouponCode("");
+        }
     };
 
     const subtotal = selectedServices.reduce((sum, id) => {
@@ -45,42 +156,161 @@ export default function BillingPage() {
         return sum + (service?.price || 0);
     }, 0);
 
-    const discountAmount = (subtotal * discount) / 100;
-    const taxableAmount = subtotal - discountAmount;
+    // Calculate discount (coupon takes priority over manual)
+    const couponDiscount = appliedCoupon?.discount_amount || 0;
+    const manualDiscountAmount = appliedCoupon ? 0 : (subtotal * discount) / 100;
+    const totalDiscount = couponDiscount || manualDiscountAmount;
+
+    const taxableAmount = subtotal - totalDiscount;
     const gstAmount = (taxableAmount * gstPercentage) / 100;
     const total = taxableAmount + gstAmount;
 
-    const handlePayment = () => {
-        if (!selectedCustomerId || selectedServices.length === 0) return;
+    const validateCoupon = async () => {
+        if (!couponCode.trim()) return;
 
-        const salon = db.salon.get();
-        if (!salon) return;
+        setIsValidatingCoupon(true);
+        setCouponError("");
 
-        // Create bill
-        db.bills.create({
-            salonId: salon.id,
-            appointmentId: "",
-            customerId: selectedCustomerId,
-            totalAmount: subtotal,
-            discount: discountAmount,
-            taxAmount: gstAmount,
-            finalAmount: total,
-            paymentStatus: "paid",
-            paymentMethod,
-        });
+        try {
+            const res = await fetch('/api/coupons/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code: couponCode,
+                    order_value: subtotal,
+                }),
+            });
 
-        // Show success
-        setShowSuccess(true);
+            const data = await res.json();
 
-        // Reset after delay
+            if (data.valid) {
+                setAppliedCoupon(data);
+                setDiscount(0); // Clear manual discount
+            } else {
+                setCouponError(data.message || 'Invalid coupon');
+                setAppliedCoupon(null);
+            }
+        } catch {
+            setCouponError('Failed to validate coupon');
+        } finally {
+            setIsValidatingCoupon(false);
+        }
+    };
+
+    const removeCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponCode("");
+        setCouponError("");
+    };
+
+    const handlePayment = async () => {
+        if (!selectedServices.length) return;
+
+        setIsSaving(true);
+
+        try {
+            const items = selectedServices.map(id => {
+                const service = services.find(s => s.id === id);
+                return {
+                    service_id: id,
+                    service_name: service?.name || 'Unknown',
+                    quantity: 1,
+                    unit_price: service?.price || 0,
+                };
+            });
+
+            const res = await fetch('/api/billing/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_id: selectedCustomer?.id || null,
+                    items,
+                    subtotal,
+                    discount_percent: appliedCoupon ? null : discount,
+                    discount_amount: totalDiscount,
+                    coupon_id: appliedCoupon?.coupon_id || null,
+                    coupon_code: appliedCoupon ? couponCode : null,
+                    tax_percent: gstPercentage,
+                    tax_amount: gstAmount,
+                    final_amount: total,
+                    payment_method: paymentMethod,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error);
+
+            // Prepare invoice data
+            const invoiceData: BillData = {
+                id: data.bill.id,
+                invoice_number: data.bill.invoice_number,
+                created_at: data.bill.created_at,
+                salon: salonInfo,
+                customer: selectedCustomer || undefined,
+                items: items.map(i => ({
+                    ...i,
+                    total_price: i.unit_price * i.quantity,
+                })),
+                subtotal,
+                discount_percent: appliedCoupon ? undefined : discount,
+                discount_amount: totalDiscount,
+                coupon_code: appliedCoupon ? couponCode : undefined,
+                tax_percent: gstPercentage,
+                tax_amount: gstAmount,
+                final_amount: total,
+                payment_method: paymentMethod,
+            };
+
+            setBillData(invoiceData);
+            setShowInvoice(true);
+        } catch (err) {
+            console.error('Payment error:', err);
+            alert('Failed to complete payment. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDownloadInvoice = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow || !invoiceRef.current) return;
+
+        const invoiceHtml = invoiceRef.current.innerHTML;
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Invoice - ${billData?.invoice_number}</title>
+                <style>
+                    body { margin: 0; padding: 20px; font-family: system-ui, sans-serif; }
+                    @media print {
+                        body { padding: 0; }
+                        @page { margin: 10mm; }
+                    }
+                </style>
+            </head>
+            <body>${invoiceHtml}</body>
+            </html>
+        `);
+
+        printWindow.document.close();
         setTimeout(() => {
-            setShowSuccess(false);
-            setSelectedCustomerId("");
-            setSelectedServices([]);
-            setDiscount(0);
-            setPaymentMethod('cash');
-            setCustomerSearch("");
-        }, 2000);
+            printWindow.print();
+        }, 250);
+    };
+
+    const resetBilling = () => {
+        setShowInvoice(false);
+        setBillData(null);
+        setSelectedCustomer(null);
+        setSelectedServices([]);
+        setDiscount(0);
+        setPaymentMethod('cash');
+        setCustomerSearch("");
+        setCouponCode("");
+        setAppliedCoupon(null);
     };
 
     const getInitials = (name: string) =>
@@ -90,17 +320,32 @@ export default function BillingPage() {
         return <div className={styles.loading}><div className={styles.spinner}></div></div>;
     }
 
-    if (showSuccess) {
+    // Invoice View
+    if (showInvoice && billData) {
         return (
-            <div className={styles.successScreen}>
-                <div className={styles.successIcon}>
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M20 6L9 17l-5-5" />
-                    </svg>
+            <>
+                <Header title="Payment Complete" subtitle="Invoice generated" />
+                <div className={styles.invoiceContainer}>
+                    <div className={styles.successHeader}>
+                        <div className={styles.successIcon}>✓</div>
+                        <h2>Payment Successful!</h2>
+                        <p>₹{billData.final_amount.toLocaleString()} received via {billData.payment_method.toUpperCase()}</p>
+                    </div>
+
+                    <div className={styles.invoiceWrapper} ref={invoiceRef}>
+                        <Invoice data={billData} />
+                    </div>
+
+                    <div className={styles.invoiceActions}>
+                        <button className={styles.downloadBtn} onClick={handleDownloadInvoice}>
+                            📥 Download Invoice
+                        </button>
+                        <button className={styles.newBillBtn} onClick={resetBilling}>
+                            + New Bill
+                        </button>
+                    </div>
                 </div>
-                <h2>Payment Successful!</h2>
-                <p>₹{total.toLocaleString()} received via {paymentMethod.toUpperCase()}</p>
-            </div>
+            </>
         );
     }
 
@@ -115,7 +360,6 @@ export default function BillingPage() {
                     {services.length === 0 ? (
                         <div className={styles.emptyServices}>
                             <p>No services available</p>
-                            <button onClick={() => router.push('/services')}>Add Services</button>
                         </div>
                     ) : (
                         <div className={styles.servicesGrid}>
@@ -140,31 +384,49 @@ export default function BillingPage() {
 
                     {/* Customer Selection */}
                     <div className={styles.customerSection}>
-                        <input
-                            type="text"
-                            className={styles.customerSearch}
-                            placeholder="Search customer by name or phone..."
-                            value={customerSearch}
-                            onChange={e => setCustomerSearch(e.target.value)}
-                        />
-                        {customerSearch && filteredCustomers.length > 0 && (
-                            <div className={styles.customerDropdown}>
-                                {filteredCustomers.slice(0, 5).map(c => (
-                                    <button
-                                        key={c.id}
-                                        className={styles.customerOption}
-                                        onClick={() => {
-                                            setSelectedCustomerId(c.id);
-                                            setCustomerSearch(c.name);
-                                        }}
-                                    >
-                                        <span className={styles.customerAvatar}>{getInitials(c.name)}</span>
-                                        <div>
-                                            <span className={styles.customerName}>{c.name}</span>
-                                            <span className={styles.customerPhone}>{c.phone}</span>
-                                        </div>
-                                    </button>
-                                ))}
+                        {selectedCustomer ? (
+                            <div className={styles.selectedCustomer}>
+                                <div className={styles.customerAvatar}>{getInitials(selectedCustomer.name)}</div>
+                                <div className={styles.customerInfo}>
+                                    <span className={styles.customerName}>{selectedCustomer.name}</span>
+                                    <span className={styles.customerPhone}>{selectedCustomer.phone}</span>
+                                </div>
+                                <button className={styles.clearCustomer} onClick={() => setSelectedCustomer(null)}>✕</button>
+                            </div>
+                        ) : (
+                            <div className={styles.customerSearchWrapper}>
+                                <input
+                                    type="text"
+                                    className={styles.customerSearch}
+                                    placeholder="Search customer by name or phone..."
+                                    value={customerSearch}
+                                    onChange={e => {
+                                        setCustomerSearch(e.target.value);
+                                        setShowCustomerDropdown(true);
+                                    }}
+                                    onFocus={() => setShowCustomerDropdown(true)}
+                                />
+                                {showCustomerDropdown && customerSearch && filteredCustomers.length > 0 && (
+                                    <div className={styles.customerDropdown}>
+                                        {filteredCustomers.slice(0, 5).map(c => (
+                                            <button
+                                                key={c.id}
+                                                className={styles.customerOption}
+                                                onClick={() => {
+                                                    setSelectedCustomer(c);
+                                                    setCustomerSearch("");
+                                                    setShowCustomerDropdown(false);
+                                                }}
+                                            >
+                                                <span className={styles.customerAvatar}>{getInitials(c.name)}</span>
+                                                <div>
+                                                    <span className={styles.customerName}>{c.name}</span>
+                                                    <span className={styles.customerPhone}>{c.phone}</span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -187,17 +449,49 @@ export default function BillingPage() {
                         )}
                     </div>
 
-                    {/* Discount */}
-                    <div className={styles.discountRow}>
-                        <label>Discount (%)</label>
-                        <input
-                            type="number"
-                            value={discount}
-                            onChange={e => setDiscount(Math.min(100, Math.max(0, Number(e.target.value))))}
-                            min={0}
-                            max={100}
-                        />
+                    {/* Coupon Code */}
+                    <div className={styles.couponSection}>
+                        {appliedCoupon ? (
+                            <div className={styles.appliedCoupon}>
+                                <span>🎫 {couponCode.toUpperCase()}</span>
+                                <span className={styles.couponDiscount}>-₹{couponDiscount.toLocaleString()}</span>
+                                <button onClick={removeCoupon} className={styles.removeCoupon}>✕</button>
+                            </div>
+                        ) : (
+                            <div className={styles.couponInput}>
+                                <input
+                                    type="text"
+                                    placeholder="Enter coupon code"
+                                    value={couponCode}
+                                    onChange={e => {
+                                        setCouponCode(e.target.value.toUpperCase());
+                                        setCouponError("");
+                                    }}
+                                />
+                                <button
+                                    onClick={validateCoupon}
+                                    disabled={!couponCode.trim() || isValidatingCoupon || selectedServices.length === 0}
+                                >
+                                    {isValidatingCoupon ? '...' : 'Apply'}
+                                </button>
+                            </div>
+                        )}
+                        {couponError && <p className={styles.couponError}>{couponError}</p>}
                     </div>
+
+                    {/* Manual Discount (only if no coupon) */}
+                    {!appliedCoupon && (
+                        <div className={styles.discountRow}>
+                            <label>Discount (%)</label>
+                            <input
+                                type="number"
+                                value={discount}
+                                onChange={e => setDiscount(Math.min(100, Math.max(0, Number(e.target.value))))}
+                                min={0}
+                                max={100}
+                            />
+                        </div>
+                    )}
 
                     {/* Totals */}
                     <div className={styles.totals}>
@@ -205,10 +499,10 @@ export default function BillingPage() {
                             <span>Subtotal</span>
                             <span>₹{subtotal.toLocaleString()}</span>
                         </div>
-                        {discount > 0 && (
+                        {totalDiscount > 0 && (
                             <div className={styles.totalRow}>
-                                <span>Discount ({discount}%)</span>
-                                <span className={styles.discount}>-₹{discountAmount.toLocaleString()}</span>
+                                <span>Discount {appliedCoupon ? `(${couponCode})` : `(${discount}%)`}</span>
+                                <span className={styles.discount}>-₹{totalDiscount.toLocaleString()}</span>
                             </div>
                         )}
                         {gstPercentage > 0 && (
@@ -249,9 +543,9 @@ export default function BillingPage() {
                     <button
                         className={styles.payBtn}
                         onClick={handlePayment}
-                        disabled={!selectedCustomerId || selectedServices.length === 0}
+                        disabled={selectedServices.length === 0 || isSaving}
                     >
-                        Complete Payment - ₹{total.toLocaleString()}
+                        {isSaving ? 'Processing...' : `Complete Payment - ₹${total.toLocaleString()}`}
                     </button>
                 </div>
             </div>

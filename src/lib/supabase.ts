@@ -127,6 +127,86 @@ export interface DbSubscription {
     updated_at: string;
 }
 
+export interface DbAttendance {
+    id: string;
+    salon_id: string;
+    staff_id: string;
+    attendance_date: string; // YYYY-MM-DD
+    status: 'present' | 'absent' | 'half_day' | 'leave';
+    check_in_time: string | null;
+    check_out_time: string | null;
+    notes: string | null;
+    is_locked?: boolean;
+    admin_override?: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface DbProduct {
+    id: string;
+    salon_id: string;
+    name: string;
+    category: string | null;
+    brand: string | null;
+    type: 'service_use' | 'retail_sale' | 'both';
+    unit: string;
+    cost_price: number | null;
+    selling_price: number | null;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface DbSupplier {
+    id: string;
+    salon_id: string;
+    name: string;
+    contact_person: string | null;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+    notes: string | null;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface DbInventory {
+    id: string;
+    salon_id: string;
+    product_id: string;
+    quantity: number;
+    reorder_level: number;
+    updated_at: string;
+}
+
+export interface DbStockMovement {
+    id: string;
+    salon_id: string;
+    product_id: string;
+    supplier_id: string | null;
+    movement_type: 'purchase' | 'billing_deduction' | 'manual_adjustment' | 'correction' | 'return';
+    quantity_change: number;
+    quantity_before: number | null;
+    quantity_after: number | null;
+    reference_type: string | null;
+    reference_id: string | null;
+    reason: string | null;
+    performed_by: string | null;
+    created_at: string;
+}
+
+export interface DbBillingItem {
+    id: string;
+    salon_id: string;
+    product_id: string;
+    billing_id: string | null;
+    quantity_used: number;
+    unit_price: number | null;
+    total_price: number | null;
+    created_at: string;
+}
+
 // Supabase client singleton
 let supabaseClient: SupabaseClient | null = null;
 
@@ -659,6 +739,118 @@ export const supabaseDb = {
             return data;
         },
     },
+
+    // ATTENDANCE
+    attendance: {
+        /**
+         * Get all attendance records for a specific date
+         */
+        async getByDate(date: string): Promise<DbAttendance[]> {
+            const supabase = getSupabaseClient();
+            const salon = await supabaseDb.salons.get();
+            if (!salon) return [];
+
+            const { data, error } = await supabase
+                .from('attendance')
+                .select('*')
+                .eq('salon_id', salon.id)
+                .eq('attendance_date', date)
+                .order('created_at', { ascending: true });
+
+            if (error) return [];
+            return data;
+        },
+
+        /**
+         * Get attendance for a staff member within a date range (for reports)
+         */
+        async getByStaffRange(staffId: string, startDate: string, endDate: string): Promise<DbAttendance[]> {
+            const supabase = getSupabaseClient();
+            const salon = await supabaseDb.salons.get();
+            if (!salon) return [];
+
+            const { data, error } = await supabase
+                .from('attendance')
+                .select('*')
+                .eq('salon_id', salon.id)
+                .eq('staff_id', staffId)
+                .gte('attendance_date', startDate)
+                .lte('attendance_date', endDate)
+                .order('attendance_date', { ascending: true });
+
+            if (error) return [];
+            return data;
+        },
+
+        /**
+         * Upsert a single attendance record (idempotent)
+         * Uses Postgres ON CONFLICT to safely handle duplicates
+         */
+        async upsert(record: Omit<DbAttendance, 'id' | 'created_at' | 'updated_at'>): Promise<DbAttendance> {
+            const supabase = getSupabaseClient();
+            const salon = await supabaseDb.salons.get();
+            if (!salon) throw new Error('No salon found');
+
+            const { data, error } = await supabase
+                .from('attendance')
+                .upsert(
+                    { ...record, salon_id: salon.id },
+                    { onConflict: 'staff_id,attendance_date' }
+                )
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        },
+
+        /**
+         * Upsert multiple attendance records in a single transaction
+         * Safe to call multiple times (idempotent)
+         */
+        async upsertBatch(records: Array<Omit<DbAttendance, 'id' | 'salon_id' | 'created_at' | 'updated_at'>>): Promise<DbAttendance[]> {
+            const supabase = getSupabaseClient();
+            const salon = await supabaseDb.salons.get();
+            if (!salon) throw new Error('No salon found');
+
+            const recordsWithSalon = records.map(r => ({
+                ...r,
+                salon_id: salon.id,
+            }));
+
+            const { data, error } = await supabase
+                .from('attendance')
+                .upsert(recordsWithSalon, { onConflict: 'staff_id,attendance_date' })
+                .select();
+
+            if (error) throw error;
+            return data;
+        },
+
+        /**
+         * Get monthly summary for a staff member
+         */
+        async getMonthlySummary(staffId: string, year: number, month: number): Promise<{
+            present: number;
+            absent: number;
+            half_day: number;
+            leave: number;
+        }> {
+            const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+
+            const records = await this.getByStaffRange(staffId, startDate, endDate);
+
+            return {
+                present: records.filter(r => r.status === 'present').length,
+                absent: records.filter(r => r.status === 'absent').length,
+                half_day: records.filter(r => r.status === 'half_day').length,
+                leave: records.filter(r => r.status === 'leave').length,
+            };
+        },
+    },
 };
 
 export default { auth: supabaseAuth, db: supabaseDb };
+

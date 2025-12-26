@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import { db, Staff, Service } from "@/lib/database";
@@ -30,6 +30,9 @@ export default function StaffPage() {
     const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
     const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [photoError, setPhotoError] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -39,6 +42,7 @@ export default function StaffPage() {
         email: "",
         joiningDate: new Date().toISOString().split('T')[0],
         aadhar: "",
+        imageUrl: "",
     });
 
     useEffect(() => {
@@ -61,8 +65,10 @@ export default function StaffPage() {
             email: "",
             joiningDate: new Date().toISOString().split('T')[0],
             aadhar: "",
+            imageUrl: "",
         });
         setSelectedStaff(null);
+        setPhotoError(false);
         setModalMode('add');
     };
 
@@ -74,8 +80,10 @@ export default function StaffPage() {
             email: (member as Staff & { email?: string }).email || "",
             joiningDate: (member as Staff & { joiningDate?: string }).joiningDate || member.createdAt.split('T')[0],
             aadhar: (member as Staff & { aadhar?: string }).aadhar || "",
+            imageUrl: member.imageUrl || "",
         });
         setSelectedStaff(member);
+        setPhotoError(false);
         setModalMode('edit');
     };
 
@@ -88,10 +96,49 @@ export default function StaffPage() {
         setModalMode(null);
         setSelectedStaff(null);
         setShowDeleteConfirm(false);
+        setPhotoError(false);
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        // Validate file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Image must be less than 2MB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const result = event.target?.result as string;
+            setFormData({ ...formData, imageUrl: result });
+            setPhotoError(false);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeImage = () => {
+        setFormData({ ...formData, imageUrl: "" });
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
     };
 
     const handleSave = () => {
         if (!formData.name.trim()) return;
+
+        // Check for mandatory photo
+        if (!formData.imageUrl) {
+            setPhotoError(true);
+            return;
+        }
 
         const salon = db.salon.get();
         if (!salon) return;
@@ -102,6 +149,7 @@ export default function StaffPage() {
                 name: formData.name,
                 role: formData.role,
                 phone: formData.phone,
+                imageUrl: formData.imageUrl,
                 isActive: true,
                 serviceIds: [],
             });
@@ -111,6 +159,7 @@ export default function StaffPage() {
                 name: formData.name,
                 role: formData.role,
                 phone: formData.phone,
+                imageUrl: formData.imageUrl,
             });
             if (updated) {
                 setStaff(staff.map(s => s.id === selectedStaff.id ? updated : s));
@@ -186,7 +235,13 @@ export default function StaffPage() {
                         {filteredStaff.map(member => (
                             <div key={member.id} className={styles.card} onClick={() => openViewModal(member)}>
                                 <div className={styles.cardHeader}>
-                                    <div className={styles.avatar}>{getInitials(member.name)}</div>
+                                    {member.imageUrl ? (
+                                        <div className={styles.avatarImage}>
+                                            <img src={member.imageUrl} alt={member.name} />
+                                        </div>
+                                    ) : (
+                                        <div className={styles.avatar}>{getInitials(member.name)}</div>
+                                    )}
                                     <span className={`${styles.statusBadge} ${member.isActive ? styles.active : styles.inactive}`}>
                                         {member.isActive ? 'Active' : 'Inactive'}
                                     </span>
@@ -229,6 +284,35 @@ export default function StaffPage() {
                     <div className={styles.modal} onClick={e => e.stopPropagation()}>
                         <h3>{modalMode === 'add' ? 'Add Staff Member' : 'Edit Staff Member'}</h3>
                         <div className={styles.modalForm}>
+                            {/* Photo Upload - Mandatory */}
+                            <div className={styles.photoSection}>
+                                <label>Staff Photo <span className={styles.required}>*</span></label>
+                                {formData.imageUrl ? (
+                                    <div className={styles.photoPreview}>
+                                        <img src={formData.imageUrl} alt="Staff" />
+                                        <button type="button" className={styles.removePhoto} onClick={removeImage}>
+                                            ✕
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div
+                                        className={`${styles.photoUpload} ${photoError ? styles.error : ''}`}
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <span className={styles.uploadIcon}>📷</span>
+                                        <span>Click to upload photo</span>
+                                        {photoError && <span className={styles.errorText}>Photo is required</span>}
+                                    </div>
+                                )}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    style={{ display: 'none' }}
+                                />
+                            </div>
+
                             <div className={styles.formGroup}>
                                 <label>Full Name *</label>
                                 <input
@@ -305,9 +389,15 @@ export default function StaffPage() {
                 <div className={styles.modalOverlay} onClick={closeModal}>
                     <div className={styles.profileModal} onClick={e => e.stopPropagation()}>
                         <div className={styles.profileHeader}>
-                            <div className={styles.profileAvatar}>
-                                {getInitials(selectedStaff.name)}
-                            </div>
+                            {selectedStaff.imageUrl ? (
+                                <div className={styles.profileAvatarImage}>
+                                    <img src={selectedStaff.imageUrl} alt={selectedStaff.name} />
+                                </div>
+                            ) : (
+                                <div className={styles.profileAvatar}>
+                                    {getInitials(selectedStaff.name)}
+                                </div>
+                            )}
                             <div className={styles.profileInfo}>
                                 <h2>{selectedStaff.name}</h2>
                                 <p className={styles.profileRole}>{selectedStaff.role}</p>

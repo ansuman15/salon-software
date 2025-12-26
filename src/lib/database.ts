@@ -62,6 +62,7 @@ export interface Service {
     durationMinutes: number;
     price: number;
     description?: string;
+    imageUrl?: string;
     isActive: boolean;
 }
 

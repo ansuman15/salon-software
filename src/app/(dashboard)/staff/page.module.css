@@ -498,3 +498,126 @@
         flex-direction: column;
     }
 }
+
+/* Staff Photo on Card */
+.avatarImage {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.avatarImage img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Profile Photo (Large) */
+.profileAvatarImage {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.profileAvatarImage img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Photo Upload Section (Modal) */
+.photoSection {
+    margin-bottom: var(--space-2);
+}
+
+.photoSection>label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+}
+
+.required {
+    color: var(--error);
+}
+
+.photoUpload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-5);
+    background: var(--bg-secondary);
+    border: 2px dashed var(--border-medium);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.photoUpload:hover {
+    border-color: var(--text-primary);
+    background: var(--accent-champagne-light);
+}
+
+.photoUpload.error {
+    border-color: var(--error);
+    background: var(--error-light);
+}
+
+.uploadIcon {
+    font-size: 32px;
+    margin-bottom: var(--space-2);
+}
+
+.photoUpload span:not(.uploadIcon):not(.errorText) {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.errorText {
+    font-size: var(--text-xs);
+    color: var(--error);
+    margin-top: var(--space-2);
+    font-weight: var(--font-medium);
+}
+
+.photoPreview {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.photoPreview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.removePhoto {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background var(--transition-fast);
+}
+
+.removePhoto:hover {
+    background: var(--error);
+}

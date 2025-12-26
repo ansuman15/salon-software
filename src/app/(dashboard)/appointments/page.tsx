@@ -36,7 +36,35 @@ export default function AppointmentsPage() {
 
     useEffect(() => {
         loadData();
+        // Check if navigated from customers page with customer context
+        checkCustomerContext();
     }, [router]);
+
+    const checkCustomerContext = () => {
+        const contextStr = localStorage.getItem('salonx_book_for_customer');
+        if (contextStr) {
+            try {
+                const context = JSON.parse(contextStr);
+                // Clear the context so it doesn't persist
+                localStorage.removeItem('salonx_book_for_customer');
+                // Set form data with customer pre-selected
+                setFormData({
+                    customerId: context.id,
+                    customerName: "",
+                    customerPhone: "",
+                    staffId: "",
+                    date: new Date().toISOString().split('T')[0],
+                    time: "10:00",
+                    serviceIds: [],
+                    notes: "",
+                });
+                // Open the add modal
+                setModalMode('add');
+            } catch (e) {
+                console.error('Error parsing customer context:', e);
+            }
+        }
+    };
 
     const loadData = () => {
         setAppointments(db.appointments.getAll());

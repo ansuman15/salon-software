@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
+import BulkImportModal, { CustomerData } from "@/components/customers/BulkImportModal";
 import { db, Customer } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -13,7 +14,11 @@ export default function CustomersPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showBulkImport, setShowBulkImport] = useState(false);
     const [newCustomer, setNewCustomer] = useState({ name: "", phone: "", email: "", notes: "" });
+    const [editCustomer, setEditCustomer] = useState({ name: "", phone: "", email: "", notes: "", tags: [] as string[] });
 
     useEffect(() => {
         loadCustomers();
@@ -54,6 +59,100 @@ export default function CustomersPage() {
         setNewCustomer({ name: "", phone: "", email: "", notes: "" });
     };
 
+    const handleEditClick = () => {
+        if (!selectedCustomer) return;
+        setEditCustomer({
+            name: selectedCustomer.name,
+            phone: selectedCustomer.phone,
+            email: selectedCustomer.email || "",
+            notes: selectedCustomer.notes || "",
+            tags: selectedCustomer.tags || [],
+        });
+        setShowEditModal(true);
+    };
+
+    const handleSaveEdit = () => {
+        if (!selectedCustomer || !editCustomer.name.trim() || !editCustomer.phone.trim()) return;
+
+        const updated = db.customers.update(selectedCustomer.id, {
+            name: editCustomer.name,
+            phone: editCustomer.phone,
+            email: editCustomer.email || undefined,
+            notes: editCustomer.notes || undefined,
+            tags: editCustomer.tags,
+        });
+
+        if (updated) {
+            setCustomers(customers.map(c => c.id === selectedCustomer.id ? updated : c));
+            setSelectedCustomer(updated);
+        }
+        setShowEditModal(false);
+    };
+
+    const handleDeleteClick = () => {
+        setShowDeleteConfirm(true);
+    };
+
+    const handleConfirmDelete = () => {
+        if (!selectedCustomer) return;
+
+        const success = db.customers.delete(selectedCustomer.id);
+        if (success) {
+            const remaining = customers.filter(c => c.id !== selectedCustomer.id);
+            setCustomers(remaining);
+            setSelectedCustomer(remaining.length > 0 ? remaining[0] : null);
+        }
+        setShowDeleteConfirm(false);
+    };
+
+    const handleBookAppointment = () => {
+        if (!selectedCustomer) return;
+        // Store customer context for appointments page
+        localStorage.setItem('salonx_book_for_customer', JSON.stringify({
+            id: selectedCustomer.id,
+            name: selectedCustomer.name,
+            phone: selectedCustomer.phone,
+        }));
+        router.push('/appointments');
+    };
+
+    const handleSendMessage = () => {
+        if (!selectedCustomer) return;
+        // Format phone number for WhatsApp
+        let phone = selectedCustomer.phone.replace(/\s+/g, '').replace(/-/g, '');
+        // Add country code if not present
+        if (!phone.startsWith('+')) {
+            phone = '+91' + phone; // Default to India
+        }
+        phone = phone.replace('+', '');
+        // Open WhatsApp with pre-filled message
+        const message = encodeURIComponent(`Hi ${selectedCustomer.name.split(' ')[0]}, greetings from ${db.salon.get()?.name || 'our salon'}!`);
+        window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    };
+
+    const handleBulkImport = (importedCustomers: CustomerData[]) => {
+        const salon = db.salon.get();
+        if (!salon) return;
+
+        const newCustomers: Customer[] = [];
+        importedCustomers.forEach(c => {
+            const created = db.customers.create({
+                salonId: salon.id,
+                name: c.name,
+                phone: c.phone,
+                email: c.email,
+                notes: c.notes,
+                tags: ["Imported"],
+            });
+            newCustomers.push(created);
+        });
+
+        setCustomers([...customers, ...newCustomers]);
+        if (newCustomers.length > 0 && !selectedCustomer) {
+            setSelectedCustomer(newCustomers[0]);
+        }
+    };
+
     const getInitials = (name: string) =>
         name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
@@ -64,6 +163,15 @@ export default function CustomersPage() {
     const getTotalSpent = (customerId: string) => {
         const bills = db.bills.getByCustomer(customerId);
         return bills.reduce((sum, b) => sum + b.finalAmount, 0);
+    };
+
+    const toggleTag = (tag: string) => {
+        setEditCustomer(prev => ({
+            ...prev,
+            tags: prev.tags.includes(tag)
+                ? prev.tags.filter(t => t !== tag)
+                : [...prev.tags, tag],
+        }));
     };
 
     if (isLoading) {
@@ -87,6 +195,12 @@ export default function CustomersPage() {
                         />
                         <button className={styles.addBtn} onClick={() => setShowAddModal(true)}>
                             + Add
+                        </button>
+                    </div>
+
+                    <div className={styles.bulkActions}>
+                        <button className={styles.bulkImportBtn} onClick={() => setShowBulkImport(true)}>
+                            📤 Import CSV/Excel
                         </button>
                     </div>
 
@@ -130,7 +244,25 @@ export default function CustomersPage() {
                                     <p className={styles.detailPhone}>{selectedCustomer.phone}</p>
                                     {selectedCustomer.email && <p className={styles.detailEmail}>{selectedCustomer.email}</p>}
                                 </div>
+                                <div className={styles.detailActions}>
+                                    <button className={styles.editBtn} onClick={handleEditClick} title="Edit">
+                                        ✏️
+                                    </button>
+                                    <button className={styles.deleteBtn} onClick={handleDeleteClick} title="Delete">
+                                        🗑️
+                                    </button>
+                                </div>
                             </div>
+
+                            {selectedCustomer.tags && selectedCustomer.tags.length > 0 && (
+                                <div className={styles.tagsRow}>
+                                    {selectedCustomer.tags.map(tag => (
+                                        <span key={tag} className={`${styles.tagLarge} ${styles[tag.toLowerCase()]}`}>
+                                            {tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
 
                             <div className={styles.statsRow}>
                                 <div className={styles.stat}>
@@ -157,8 +289,12 @@ export default function CustomersPage() {
                             )}
 
                             <div className={styles.actions}>
-                                <button className={styles.actionBtn}>Book Appointment</button>
-                                <button className={styles.actionBtnSecondary}>Send Message</button>
+                                <button className={styles.actionBtn} onClick={handleBookAppointment}>
+                                    📅 Book Appointment
+                                </button>
+                                <button className={styles.actionBtnSecondary} onClick={handleSendMessage}>
+                                    💬 Send Message
+                                </button>
                             </div>
                         </>
                     ) : (
@@ -205,6 +341,82 @@ export default function CustomersPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Edit Customer Modal */}
+            {showEditModal && selectedCustomer && (
+                <div className={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <h3>Edit Customer</h3>
+                        <div className={styles.modalForm}>
+                            <input
+                                type="text"
+                                placeholder="Customer Name *"
+                                value={editCustomer.name}
+                                onChange={e => setEditCustomer({ ...editCustomer, name: e.target.value })}
+                            />
+                            <input
+                                type="tel"
+                                placeholder="Phone Number *"
+                                value={editCustomer.phone}
+                                onChange={e => setEditCustomer({ ...editCustomer, phone: e.target.value })}
+                            />
+                            <input
+                                type="email"
+                                placeholder="Email (optional)"
+                                value={editCustomer.email}
+                                onChange={e => setEditCustomer({ ...editCustomer, email: e.target.value })}
+                            />
+                            <textarea
+                                placeholder="Notes (optional)"
+                                value={editCustomer.notes}
+                                onChange={e => setEditCustomer({ ...editCustomer, notes: e.target.value })}
+                            />
+                            <div className={styles.tagSelector}>
+                                <label>Tags:</label>
+                                <div className={styles.tagOptions}>
+                                    {['VIP', 'Regular', 'New', 'Imported'].map(tag => (
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            className={`${styles.tagOption} ${editCustomer.tags.includes(tag) ? styles.selected : ''}`}
+                                            onClick={() => toggleTag(tag)}
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className={styles.modalActions}>
+                            <button onClick={() => setShowEditModal(false)}>Cancel</button>
+                            <button className={styles.primaryBtn} onClick={handleSaveEdit}>Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && selectedCustomer && (
+                <div className={styles.modalOverlay} onClick={() => setShowDeleteConfirm(false)}>
+                    <div className={styles.deleteModal} onClick={e => e.stopPropagation()}>
+                        <h3>Delete Customer</h3>
+                        <p>Are you sure you want to delete <strong>{selectedCustomer.name}</strong>?</p>
+                        <p className={styles.warning}>This action cannot be undone.</p>
+                        <div className={styles.modalActions}>
+                            <button onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+                            <button className={styles.dangerBtn} onClick={handleConfirmDelete}>Delete</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Import Modal */}
+            {showBulkImport && (
+                <BulkImportModal
+                    onClose={() => setShowBulkImport(false)}
+                    onImport={handleBulkImport}
+                />
             )}
         </>
     );

@@ -363,3 +363,167 @@
         display: none;
     }
 }
+
+/* Bulk Actions */
+.bulkActions {
+    padding: 0 var(--space-4) var(--space-3);
+}
+
+.bulkImportBtn {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    background: linear-gradient(135deg, #F5F0EB, #E8E4E0);
+    border: 1px dashed var(--border-medium);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.bulkImportBtn:hover {
+    background: var(--accent-champagne-light);
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
+/* Detail Actions (Edit/Delete) */
+.detailActions {
+    margin-left: auto;
+    display: flex;
+    gap: var(--space-2);
+}
+
+.editBtn,
+.deleteBtn {
+    padding: var(--space-2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 16px;
+}
+
+.editBtn:hover {
+    background: var(--accent-champagne-light);
+    border-color: var(--text-primary);
+}
+
+.deleteBtn:hover {
+    background: var(--error-light);
+    border-color: var(--error);
+}
+
+/* Tags Row */
+.tagsRow {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+}
+
+.tagLarge {
+    padding: 4px 12px;
+    font-size: var(--text-xs);
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    font-weight: var(--font-medium);
+}
+
+.tagLarge.new {
+    background: var(--info-light);
+    color: var(--info);
+}
+
+.tagLarge.vip {
+    background: var(--accent-champagne-light);
+    color: var(--text-primary);
+}
+
+.tagLarge.regular {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.tagLarge.imported {
+    background: #E3F2FD;
+    color: #1565C0;
+}
+
+.tag.imported {
+    background: #E3F2FD;
+    color: #1565C0;
+}
+
+/* Tag Selector in Edit Modal */
+.tagSelector {
+    margin-top: var(--space-2);
+}
+
+.tagSelector label {
+    display: block;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+}
+
+.tagOptions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.tagOption {
+    padding: 6px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.tagOption:hover {
+    background: var(--accent-champagne-light);
+}
+
+.tagOption.selected {
+    background: var(--text-primary);
+    color: var(--text-inverse);
+    border-color: var(--text-primary);
+}
+
+/* Delete Modal */
+.deleteModal {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+}
+
+.deleteModal h3 {
+    margin: 0 0 var(--space-4);
+    color: var(--error);
+}
+
+.deleteModal p {
+    margin: 0 0 var(--space-2);
+    color: var(--text-secondary);
+}
+
+.deleteModal .warning {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.dangerBtn {
+    background: var(--error) !important;
+    border: none !important;
+    color: var(--text-inverse) !important;
+}
+
+.dangerBtn:hover {
+    opacity: 0.9;
+}
