@@ -75,7 +75,7 @@ export default function AdminPage() {
                     }
                 }
             } catch { }
-            router.replace('/login');
+            router.replace('/admin/login');
         }
         setIsLoading(false);
     };
