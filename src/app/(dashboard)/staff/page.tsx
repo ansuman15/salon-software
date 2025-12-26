@@ -51,10 +51,38 @@ export default function StaffPage() {
     });
 
     useEffect(() => {
-        setStaff(db.staff.getAll());
-        setServices(db.services.getAll());
-        setIsLoading(false);
-    }, [router]);
+        loadStaff();
+    }, []);
+
+    const loadStaff = async () => {
+        setIsLoading(true);
+        try {
+            const [staffRes, servicesRes] = await Promise.all([
+                fetch('/api/staff'),
+                fetch('/api/services')
+            ]);
+
+            if (staffRes.ok) {
+                const data = await staffRes.json();
+                setStaff(data.staff || []);
+            } else {
+                setStaff(db.staff.getAll());
+            }
+
+            if (servicesRes.ok) {
+                const data = await servicesRes.json();
+                setServices(data.services || []);
+            } else {
+                setServices(db.services.getAll());
+            }
+        } catch (error) {
+            console.error('Error loading staff:', error);
+            setStaff(db.staff.getAll());
+            setServices(db.services.getAll());
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const filteredStaff = staff.filter(s => {
         if (filter === 'active') return s.isActive;
@@ -149,62 +177,111 @@ export default function StaffPage() {
             return;
         }
 
-        const salonId = session?.salon?.id;
-        if (!salonId) {
-            toast.error('Session not found. Please login again.');
-            return;
-        }
-
         setIsSaving(true);
 
         try {
-            // Simulate async for smooth UX
-            await new Promise(resolve => setTimeout(resolve, 300));
-
             if (modalMode === 'add') {
-                const created = db.staff.create({
-                    salonId: salonId,
-                    name: formData.name,
-                    role: formData.role,
-                    phone: formData.phone,
-                    imageUrl: formData.imageUrl,
-                    isActive: true,
-                    serviceIds: [],
+                const res = await fetch('/api/staff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: formData.name,
+                        role: formData.role,
+                        phone: formData.phone,
+                        imageUrl: formData.imageUrl,
+                        serviceIds: [],
+                    }),
                 });
-                setStaff([...staff, created]);
-                toast.success(`Staff "${created.name}" added successfully!`);
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    setStaff(prev => [...prev, data.staff]);
+                    toast.success(`Staff "${data.staff.name}" added successfully!`);
+                    closeModal();
+                } else {
+                    toast.error(data.error || 'Failed to add staff');
+                }
             } else if (modalMode === 'edit' && selectedStaff) {
-                const updated = db.staff.update(selectedStaff.id, {
-                    name: formData.name,
-                    role: formData.role,
-                    phone: formData.phone,
-                    imageUrl: formData.imageUrl,
+                const res = await fetch('/api/staff', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: selectedStaff.id,
+                        name: formData.name,
+                        role: formData.role,
+                        phone: formData.phone,
+                        imageUrl: formData.imageUrl,
+                    }),
                 });
-                if (updated) {
-                    setStaff(staff.map(s => s.id === selectedStaff.id ? updated : s));
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    setStaff(prev => prev.map(s => s.id === selectedStaff.id ? data.staff : s));
                     toast.success('Staff updated successfully!');
+                    closeModal();
+                } else {
+                    toast.error(data.error || 'Failed to update staff');
                 }
             }
-
-            closeModal();
         } catch (error) {
+            console.error('Save staff error:', error);
             toast.error('Failed to save staff. Please try again.');
         } finally {
             setIsSaving(false);
         }
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!selectedStaff) return;
-        db.staff.delete(selectedStaff.id);
-        setStaff(staff.filter(s => s.id !== selectedStaff.id));
-        closeModal();
+
+        setIsSaving(true);
+
+        try {
+            const res = await fetch(`/api/staff?id=${selectedStaff.id}`, {
+                method: 'DELETE',
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setStaff(prev => prev.filter(s => s.id !== selectedStaff.id));
+                toast.success('Staff member removed successfully!');
+                closeModal();
+            } else {
+                toast.error(data.error || 'Failed to delete staff');
+            }
+        } catch (error) {
+            console.error('Delete staff error:', error);
+            toast.error('Failed to delete staff. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const toggleStatus = (member: Staff) => {
-        const updated = db.staff.update(member.id, { isActive: !member.isActive });
-        if (updated) {
-            setStaff(staff.map(s => s.id === member.id ? updated : s));
+    const toggleStatus = async (member: Staff) => {
+        try {
+            const res = await fetch('/api/staff', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: member.id,
+                    isActive: !member.isActive,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setStaff(prev => prev.map(s => s.id === member.id ? data.staff : s));
+                toast.success(data.staff.isActive ? 'Staff activated' : 'Staff deactivated');
+            } else {
+                toast.error(data.error || 'Failed to update staff status');
+            }
+        } catch (error) {
+            console.error('Toggle staff status error:', error);
+            toast.error('Failed to update staff status');
         }
     };
 

@@ -35,9 +35,27 @@ export default function ServicesPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        setServices(db.services.getAll());
-        setIsLoading(false);
-    }, [router]);
+        loadServices();
+    }, []);
+
+    const loadServices = async () => {
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/services');
+            if (res.ok) {
+                const data = await res.json();
+                setServices(data.services || []);
+            } else {
+                // Fallback to localStorage
+                setServices(db.services.getAll());
+            }
+        } catch (error) {
+            console.error('Error loading services:', error);
+            setServices(db.services.getAll());
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const filteredServices = services.filter(s =>
         activeCategory === "All" || s.category === activeCategory
@@ -60,34 +78,34 @@ export default function ServicesPage() {
             return;
         }
 
-        const salonId = session?.salon?.id;
-        if (!salonId) {
-            toast.error('Session not found. Please login again.');
-            return;
-        }
-
         setIsSaving(true);
 
         try {
-            // Simulate async for smooth UX
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            const created = db.services.create({
-                salonId: salonId,
-                name: formData.name,
-                category: formData.category,
-                durationMinutes: formData.durationMinutes,
-                price: formData.price,
-                description: formData.description || undefined,
-                imageUrl: formData.imageUrl || undefined,
-                isActive: true,
+            const res = await fetch('/api/services', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.name,
+                    category: formData.category,
+                    durationMinutes: formData.durationMinutes,
+                    price: formData.price,
+                    description: formData.description,
+                    imageUrl: formData.imageUrl,
+                }),
             });
 
-            setServices([...services, created]);
-            setShowAddModal(false);
-            resetForm();
-            toast.success(`Service "${created.name}" added successfully!`);
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setServices(prev => [...prev, data.service]);
+                setShowAddModal(false);
+                resetForm();
+                toast.success(`Service "${data.service.name}" added successfully!`);
+            } else {
+                toast.error(data.error || 'Failed to add service');
+            }
         } catch (error) {
+            console.error('Add service error:', error);
             toast.error('Failed to add service. Please try again.');
         } finally {
             setIsSaving(false);
@@ -107,24 +125,46 @@ export default function ServicesPage() {
         setShowEditModal(true);
     };
 
-    const handleEditService = () => {
-        if (!selectedService || !formData.name.trim()) return;
-
-        const updated = db.services.update(selectedService.id, {
-            name: formData.name,
-            category: formData.category,
-            durationMinutes: formData.durationMinutes,
-            price: formData.price,
-            description: formData.description || undefined,
-            imageUrl: formData.imageUrl || undefined,
-        });
-
-        if (updated) {
-            setServices(services.map(s => s.id === selectedService.id ? updated : s));
+    const handleEditService = async () => {
+        if (!selectedService || !formData.name.trim()) {
+            toast.error('Please enter a service name');
+            return;
         }
-        setShowEditModal(false);
-        setSelectedService(null);
-        resetForm();
+
+        setIsSaving(true);
+
+        try {
+            const res = await fetch('/api/services', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: selectedService.id,
+                    name: formData.name,
+                    category: formData.category,
+                    durationMinutes: formData.durationMinutes,
+                    price: formData.price,
+                    description: formData.description,
+                    imageUrl: formData.imageUrl,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setServices(prev => prev.map(s => s.id === selectedService.id ? data.service : s));
+                toast.success('Service updated successfully!');
+            } else {
+                toast.error(data.error || 'Failed to update service');
+            }
+        } catch (error) {
+            console.error('Edit service error:', error);
+            toast.error('Failed to update service. Please try again.');
+        } finally {
+            setShowEditModal(false);
+            setSelectedService(null);
+            resetForm();
+            setIsSaving(false);
+        }
     };
 
     const openDeleteConfirm = (service: Service) => {
@@ -132,24 +172,59 @@ export default function ServicesPage() {
         setShowDeleteConfirm(true);
     };
 
-    const handleDeleteService = () => {
+    const handleDeleteService = async () => {
         if (!selectedService) return;
 
-        const success = db.services.delete(selectedService.id);
-        if (success) {
-            setServices(services.filter(s => s.id !== selectedService.id));
+        setIsSaving(true);
+
+        try {
+            const res = await fetch(`/api/services?id=${selectedService.id}`, {
+                method: 'DELETE',
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setServices(prev => prev.filter(s => s.id !== selectedService.id));
+                toast.success('Service deleted successfully!');
+            } else {
+                toast.error(data.error || 'Failed to delete service');
+            }
+        } catch (error) {
+            console.error('Delete service error:', error);
+            toast.error('Failed to delete service. Please try again.');
+        } finally {
+            setShowDeleteConfirm(false);
+            setSelectedService(null);
+            setIsSaving(false);
         }
-        setShowDeleteConfirm(false);
-        setSelectedService(null);
     };
 
-    const toggleService = (id: string) => {
+    const toggleService = async (id: string) => {
         const service = services.find(s => s.id === id);
         if (!service) return;
 
-        const updated = db.services.update(id, { isActive: !service.isActive });
-        if (updated) {
-            setServices(services.map(s => s.id === id ? updated : s));
+        try {
+            const res = await fetch('/api/services', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: service.id,
+                    isActive: !service.isActive,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setServices(prev => prev.map(s => s.id === id ? data.service : s));
+                toast.success(data.service.isActive ? 'Service activated' : 'Service deactivated');
+            } else {
+                toast.error(data.error || 'Failed to toggle service');
+            }
+        } catch (error) {
+            console.error('Toggle service error:', error);
+            toast.error('Failed to toggle service status');
         }
     };
 
