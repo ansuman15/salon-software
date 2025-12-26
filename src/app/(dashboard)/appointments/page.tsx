@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
+import { useSession } from "@/lib/SessionContext";
+import { useToast } from "@/components/ui/Toast";
 import { db, Appointment, Customer, Staff, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -11,11 +13,14 @@ type ModalMode = 'add' | 'edit' | null;
 
 export default function AppointmentsPage() {
     const router = useRouter();
+    const { session } = useSession();
+    const toast = useToast();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [staff, setStaff] = useState<Staff[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('day');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [modalMode, setModalMode] = useState<ModalMode>(null);
@@ -66,12 +71,38 @@ export default function AppointmentsPage() {
         }
     };
 
-    const loadData = () => {
-        setAppointments(db.appointments.getAll());
-        setCustomers(db.customers.getAll());
-        setStaff(db.staff.getAll().filter(s => s.isActive));
-        setServices(db.services.getAll().filter(s => s.isActive));
-        setIsLoading(false);
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch appointments from Supabase
+            const [aptsRes, custsRes] = await Promise.all([
+                fetch('/api/appointments'),
+                fetch('/api/customers')
+            ]);
+
+            if (aptsRes.ok) {
+                const aptsData = await aptsRes.json();
+                setAppointments(aptsData.appointments || []);
+            }
+
+            if (custsRes.ok) {
+                const custsData = await custsRes.json();
+                setCustomers(custsData.customers || []);
+            }
+
+            // Get staff and services from localStorage for now
+            setStaff(db.staff.getAll().filter(s => s.isActive));
+            setServices(db.services.getAll().filter(s => s.isActive));
+        } catch (error) {
+            console.error('Error loading data:', error);
+            // Fallback to localStorage
+            setAppointments(db.appointments.getAll());
+            setCustomers(db.customers.getAll());
+            setStaff(db.staff.getAll().filter(s => s.isActive));
+            setServices(db.services.getAll().filter(s => s.isActive));
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const formatDate = (date: Date) => {
@@ -125,9 +156,20 @@ export default function AppointmentsPage() {
         setCancelReason("");
     };
 
-    const handleSave = () => {
-        const salon = db.salon.get();
-        if (!salon || !formData.staffId || formData.serviceIds.length === 0) return;
+    const handleSave = async () => {
+        // Validate inputs
+        if (!formData.staffId) {
+            toast.error('Please select a staff member');
+            return;
+        }
+        if (formData.serviceIds.length === 0) {
+            toast.error('Please select at least one service');
+            return;
+        }
+        if (!formData.customerId && (!formData.customerName || !formData.customerPhone)) {
+            toast.error('Please select or enter customer details');
+            return;
+        }
 
         // Calculate end time based on services
         const totalDuration = formData.serviceIds.reduce((sum, id) => {
@@ -139,49 +181,70 @@ export default function AppointmentsPage() {
         const endMins = hours * 60 + mins + totalDuration;
         const endTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
 
-        if (modalMode === 'add') {
-            // Create or find customer
-            let customerId = formData.customerId;
-            if (!customerId && formData.customerName && formData.customerPhone) {
-                const newCustomer = db.customers.create({
-                    salonId: salon.id,
-                    name: formData.customerName,
-                    phone: formData.customerPhone,
-                    tags: ["New"],
+        setIsSaving(true);
+
+        try {
+            if (modalMode === 'add') {
+                // Create appointment via API
+                const res = await fetch('/api/appointments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customerId: formData.customerId || null,
+                        customerName: formData.customerName,
+                        customerPhone: formData.customerPhone,
+                        staffId: formData.staffId,
+                        appointmentDate: formData.date,
+                        startTime: formData.time,
+                        endTime,
+                        serviceIds: formData.serviceIds,
+                        notes: formData.notes,
+                    }),
                 });
-                customerId = newCustomer.id;
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    setAppointments(prev => [data.appointment, ...prev]);
+                    toast.success('Appointment booked successfully!');
+                    closeModal();
+                } else {
+                    toast.error(data.error || 'Failed to book appointment');
+                }
+            } else if (modalMode === 'edit' && selectedAppointment) {
+                // Update appointment via API
+                const res = await fetch('/api/appointments', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: selectedAppointment.id,
+                        staffId: formData.staffId,
+                        appointmentDate: formData.date,
+                        startTime: formData.time,
+                        endTime,
+                        serviceIds: formData.serviceIds,
+                        notes: formData.notes,
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    setAppointments(prev =>
+                        prev.map(a => a.id === selectedAppointment.id ? data.appointment : a)
+                    );
+                    toast.success('Appointment updated successfully!');
+                    closeModal();
+                } else {
+                    toast.error(data.error || 'Failed to update appointment');
+                }
             }
-            if (!customerId) return;
-
-            const created = db.appointments.create({
-                salonId: salon.id,
-                customerId,
-                staffId: formData.staffId,
-                appointmentDate: formData.date,
-                startTime: formData.time,
-                endTime,
-                status: "confirmed",
-                serviceIds: formData.serviceIds,
-                notes: formData.notes,
-            });
-
-            setAppointments([...appointments, created]);
-        } else if (modalMode === 'edit' && selectedAppointment) {
-            const updated = db.appointments.update(selectedAppointment.id, {
-                staffId: formData.staffId,
-                appointmentDate: formData.date,
-                startTime: formData.time,
-                endTime,
-                serviceIds: formData.serviceIds,
-                notes: formData.notes,
-            });
-
-            if (updated) {
-                setAppointments(appointments.map(a => a.id === selectedAppointment.id ? updated : a));
-            }
+        } catch (error) {
+            console.error('Save appointment error:', error);
+            toast.error('Failed to save appointment. Please try again.');
+        } finally {
+            setIsSaving(false);
         }
-
-        closeModal();
     };
 
     const handleCancel = () => {
