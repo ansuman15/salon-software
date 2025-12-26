@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
+import { useToast } from "@/components/ui/Toast";
 import { db, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -12,8 +13,10 @@ const categories = ["All", "Hair", "Skin", "Nails", "Spa", "Bridal", "Other"];
 export default function ServicesPage() {
     const router = useRouter();
     const { session } = useSession();
+    const toast = useToast();
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -51,33 +54,44 @@ export default function ServicesPage() {
         });
     };
 
-    const handleAddService = () => {
+    const handleAddService = async () => {
         if (!formData.name.trim()) {
-            alert('Please enter a service name');
+            toast.error('Please enter a service name');
             return;
         }
 
-        // Use session salon ID instead of db.salon.get()
         const salonId = session?.salon?.id;
         if (!salonId) {
-            alert('Session not found. Please login again.');
+            toast.error('Session not found. Please login again.');
             return;
         }
 
-        const created = db.services.create({
-            salonId: salonId,
-            name: formData.name,
-            category: formData.category,
-            durationMinutes: formData.durationMinutes,
-            price: formData.price,
-            description: formData.description || undefined,
-            imageUrl: formData.imageUrl || undefined,
-            isActive: true,
-        });
+        setIsSaving(true);
 
-        setServices([...services, created]);
-        setShowAddModal(false);
-        resetForm();
+        try {
+            // Simulate async for smooth UX
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const created = db.services.create({
+                salonId: salonId,
+                name: formData.name,
+                category: formData.category,
+                durationMinutes: formData.durationMinutes,
+                price: formData.price,
+                description: formData.description || undefined,
+                imageUrl: formData.imageUrl || undefined,
+                isActive: true,
+            });
+
+            setServices([...services, created]);
+            setShowAddModal(false);
+            resetForm();
+            toast.success(`Service "${created.name}" added successfully!`);
+        } catch (error) {
+            toast.error('Failed to add service. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const openEditModal = (service: Service) => {
@@ -255,14 +269,18 @@ export default function ServicesPage() {
                     />
                 </div>
                 <div className={styles.modalActions}>
-                    <button onClick={() => { isEdit ? setShowEditModal(false) : setShowAddModal(false); resetForm(); }}>
+                    <button
+                        onClick={() => { isEdit ? setShowEditModal(false) : setShowAddModal(false); resetForm(); }}
+                        disabled={isSaving}
+                    >
                         Cancel
                     </button>
                     <button
                         className={styles.primaryBtn}
                         onClick={isEdit ? handleEditService : handleAddService}
+                        disabled={isSaving}
                     >
-                        {isEdit ? 'Save Changes' : 'Add Service'}
+                        {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Service'}
                     </button>
                 </div>
             </div>

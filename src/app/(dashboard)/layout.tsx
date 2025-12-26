@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SessionProvider, useSession } from "@/lib/SessionContext";
+import { ToastProvider } from "@/components/ui/Toast";
 import Sidebar from "@/components/layout/Sidebar";
 import styles from "./layout.module.css";
 
@@ -52,7 +53,10 @@ export default function DashboardLayout({
 }) {
     return (
         <SessionProvider>
-            <DashboardContent>{children}</DashboardContent>
+            <ToastProvider>
+                <DashboardContent>{children}</DashboardContent>
+            </ToastProvider>
         </SessionProvider>
     );
 }
+

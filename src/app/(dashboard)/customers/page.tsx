@@ -5,16 +5,19 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import BulkImportModal, { CustomerData } from "@/components/customers/BulkImportModal";
 import { useSession } from "@/lib/SessionContext";
+import { useToast } from "@/components/ui/Toast";
 import { db, Customer } from "@/lib/database";
 import styles from "./page.module.css";
 
 export default function CustomersPage() {
     const router = useRouter();
     const { session } = useSession();
+    const toast = useToast();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -40,32 +43,42 @@ export default function CustomersPage() {
         c.phone.includes(searchQuery)
     );
 
-    const handleAddCustomer = () => {
+    const handleAddCustomer = async () => {
         if (!newCustomer.name.trim() || !newCustomer.phone.trim()) {
-            alert('Please enter name and phone number');
+            toast.error('Please enter name and phone number');
             return;
         }
 
-        // Use session salon ID
         const salonId = session?.salon?.id;
         if (!salonId) {
-            alert('Session not found. Please login again.');
+            toast.error('Session not found. Please login again.');
             return;
         }
 
-        const created = db.customers.create({
-            salonId: salonId,
-            name: newCustomer.name,
-            phone: newCustomer.phone,
-            email: newCustomer.email,
-            notes: newCustomer.notes,
-            tags: ["New"],
-        });
+        setIsSaving(true);
 
-        setCustomers([...customers, created]);
-        setSelectedCustomer(created);
-        setShowAddModal(false);
-        setNewCustomer({ name: "", phone: "", email: "", notes: "" });
+        try {
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const created = db.customers.create({
+                salonId: salonId,
+                name: newCustomer.name,
+                phone: newCustomer.phone,
+                email: newCustomer.email,
+                notes: newCustomer.notes,
+                tags: ["New"],
+            });
+
+            setCustomers([...customers, created]);
+            setSelectedCustomer(created);
+            setShowAddModal(false);
+            setNewCustomer({ name: "", phone: "", email: "", notes: "" });
+            toast.success(`Customer "${created.name}" added successfully!`);
+        } catch (error) {
+            toast.error('Failed to add customer. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleEditClick = () => {

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
+import { useToast } from "@/components/ui/Toast";
 import { db, Staff, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -25,9 +26,11 @@ type ModalMode = 'add' | 'edit' | 'view' | null;
 export default function StaffPage() {
     const router = useRouter();
     const { session } = useSession();
+    const toast = useToast();
     const [staff, setStaff] = useState<Staff[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const [modalMode, setModalMode] = useState<ModalMode>(null);
     const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
     const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -133,49 +136,62 @@ export default function StaffPage() {
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.name.trim()) {
-            alert('Please enter staff name');
+            toast.error('Please enter staff name');
             return;
         }
 
         // Check for mandatory photo
         if (!formData.imageUrl) {
             setPhotoError(true);
+            toast.error('Please upload a photo');
             return;
         }
 
-        // Use session salon ID
         const salonId = session?.salon?.id;
         if (!salonId) {
-            alert('Session not found. Please login again.');
+            toast.error('Session not found. Please login again.');
             return;
         }
 
-        if (modalMode === 'add') {
-            const created = db.staff.create({
-                salonId: salonId,
-                name: formData.name,
-                role: formData.role,
-                phone: formData.phone,
-                imageUrl: formData.imageUrl,
-                isActive: true,
-                serviceIds: [],
-            });
-            setStaff([...staff, created]);
-        } else if (modalMode === 'edit' && selectedStaff) {
-            const updated = db.staff.update(selectedStaff.id, {
-                name: formData.name,
-                role: formData.role,
-                phone: formData.phone,
-                imageUrl: formData.imageUrl,
-            });
-            if (updated) {
-                setStaff(staff.map(s => s.id === selectedStaff.id ? updated : s));
-            }
-        }
+        setIsSaving(true);
 
-        closeModal();
+        try {
+            // Simulate async for smooth UX
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            if (modalMode === 'add') {
+                const created = db.staff.create({
+                    salonId: salonId,
+                    name: formData.name,
+                    role: formData.role,
+                    phone: formData.phone,
+                    imageUrl: formData.imageUrl,
+                    isActive: true,
+                    serviceIds: [],
+                });
+                setStaff([...staff, created]);
+                toast.success(`Staff "${created.name}" added successfully!`);
+            } else if (modalMode === 'edit' && selectedStaff) {
+                const updated = db.staff.update(selectedStaff.id, {
+                    name: formData.name,
+                    role: formData.role,
+                    phone: formData.phone,
+                    imageUrl: formData.imageUrl,
+                });
+                if (updated) {
+                    setStaff(staff.map(s => s.id === selectedStaff.id ? updated : s));
+                    toast.success('Staff updated successfully!');
+                }
+            }
+
+            closeModal();
+        } catch (error) {
+            toast.error('Failed to save staff. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleDelete = () => {
