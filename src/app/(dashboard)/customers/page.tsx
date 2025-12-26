@@ -27,15 +27,36 @@ export default function CustomersPage() {
 
     useEffect(() => {
         loadCustomers();
-    }, [router]);
+    }, []);
 
-    const loadCustomers = () => {
-        const data = db.customers.getAll();
-        setCustomers(data);
-        if (data.length > 0 && !selectedCustomer) {
-            setSelectedCustomer(data[0]);
+    const loadCustomers = async () => {
+        setIsLoading(true);
+        try {
+            // Try to fetch from Supabase API first
+            const res = await fetch('/api/customers');
+            if (res.ok) {
+                const data = await res.json();
+                const cloudCustomers = data.customers || [];
+                setCustomers(cloudCustomers);
+                if (cloudCustomers.length > 0 && !selectedCustomer) {
+                    setSelectedCustomer(cloudCustomers[0]);
+                }
+            } else {
+                // Fallback to localStorage if API fails
+                const localData = db.customers.getAll();
+                setCustomers(localData);
+                if (localData.length > 0 && !selectedCustomer) {
+                    setSelectedCustomer(localData[0]);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading customers:', error);
+            // Fallback to localStorage
+            const localData = db.customers.getAll();
+            setCustomers(localData);
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     const filteredCustomers = customers.filter(c =>
@@ -152,26 +173,55 @@ export default function CustomersPage() {
         window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
     };
 
-    const handleBulkImport = (importedCustomers: CustomerData[]) => {
-        const salon = db.salon.get();
-        if (!salon) return;
+    const handleBulkImport = async (importedCustomers: CustomerData[]) => {
+        if (importedCustomers.length === 0) {
+            toast.error('No customers to import');
+            return;
+        }
 
-        const newCustomers: Customer[] = [];
-        importedCustomers.forEach(c => {
-            const created = db.customers.create({
-                salonId: salon.id,
-                name: c.name,
-                phone: c.phone,
-                email: c.email,
-                notes: c.notes,
-                tags: ["Imported"],
+        setIsSaving(true);
+
+        try {
+            // Send to Supabase API
+            const res = await fetch('/api/customers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customers: importedCustomers.map(c => ({
+                        name: c.name,
+                        phone: c.phone,
+                        email: c.email,
+                        notes: c.notes,
+                        tags: ['Imported']
+                    }))
+                }),
             });
-            newCustomers.push(created);
-        });
 
-        setCustomers([...customers, ...newCustomers]);
-        if (newCustomers.length > 0 && !selectedCustomer) {
-            setSelectedCustomer(newCustomers[0]);
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                // Update local state with imported customers from API response
+                const newCustomers = data.customers || [];
+                setCustomers(prev => [...newCustomers, ...prev]);
+
+                if (newCustomers.length > 0 && !selectedCustomer) {
+                    setSelectedCustomer(newCustomers[0]);
+                }
+
+                toast.success(`Successfully imported ${data.imported} customers!`);
+
+                if (data.failed > 0) {
+                    toast.info(`${data.failed} rows skipped (missing name or phone)`);
+                }
+            } else {
+                toast.error(data.error || 'Failed to import customers');
+            }
+        } catch (error) {
+            console.error('Bulk import error:', error);
+            toast.error('Failed to import customers. Please try again.');
+        } finally {
+            setIsSaving(false);
+            setShowBulkImport(false);
         }
     };
 
