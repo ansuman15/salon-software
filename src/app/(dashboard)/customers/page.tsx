@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import BulkImportModal, { CustomerData } from "@/components/customers/BulkImportModal";
+import { useSession } from "@/lib/SessionContext";
 import { db, Customer } from "@/lib/database";
 import styles from "./page.module.css";
 
 export default function CustomersPage() {
     const router = useRouter();
+    const { session } = useSession();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
@@ -39,13 +41,20 @@ export default function CustomersPage() {
     );
 
     const handleAddCustomer = () => {
-        if (!newCustomer.name.trim() || !newCustomer.phone.trim()) return;
+        if (!newCustomer.name.trim() || !newCustomer.phone.trim()) {
+            alert('Please enter name and phone number');
+            return;
+        }
 
-        const salon = db.salon.get();
-        if (!salon) return;
+        // Use session salon ID
+        const salonId = session?.salon?.id;
+        if (!salonId) {
+            alert('Session not found. Please login again.');
+            return;
+        }
 
         const created = db.customers.create({
-            salonId: salon.id,
+            salonId: salonId,
             name: newCustomer.name,
             phone: newCustomer.phone,
             email: newCustomer.email,

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
+import { useSession } from "@/lib/SessionContext";
 import { db, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -10,6 +11,7 @@ const categories = ["All", "Hair", "Skin", "Nails", "Spa", "Bridal", "Other"];
 
 export default function ServicesPage() {
     const router = useRouter();
+    const { session } = useSession();
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -50,13 +52,20 @@ export default function ServicesPage() {
     };
 
     const handleAddService = () => {
-        if (!formData.name.trim()) return;
+        if (!formData.name.trim()) {
+            alert('Please enter a service name');
+            return;
+        }
 
-        const salon = db.salon.get();
-        if (!salon) return;
+        // Use session salon ID instead of db.salon.get()
+        const salonId = session?.salon?.id;
+        if (!salonId) {
+            alert('Session not found. Please login again.');
+            return;
+        }
 
         const created = db.services.create({
-            salonId: salon.id,
+            salonId: salonId,
             name: formData.name,
             category: formData.category,
             durationMinutes: formData.durationMinutes,

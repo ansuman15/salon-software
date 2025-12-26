@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
+import { useSession } from "@/lib/SessionContext";
 import { db, Staff, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -23,6 +24,7 @@ type ModalMode = 'add' | 'edit' | 'view' | null;
 
 export default function StaffPage() {
     const router = useRouter();
+    const { session } = useSession();
     const [staff, setStaff] = useState<Staff[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -132,7 +134,10 @@ export default function StaffPage() {
     };
 
     const handleSave = () => {
-        if (!formData.name.trim()) return;
+        if (!formData.name.trim()) {
+            alert('Please enter staff name');
+            return;
+        }
 
         // Check for mandatory photo
         if (!formData.imageUrl) {
@@ -140,12 +145,16 @@ export default function StaffPage() {
             return;
         }
 
-        const salon = db.salon.get();
-        if (!salon) return;
+        // Use session salon ID
+        const salonId = session?.salon?.id;
+        if (!salonId) {
+            alert('Session not found. Please login again.');
+            return;
+        }
 
         if (modalMode === 'add') {
             const created = db.staff.create({
-                salonId: salon.id,
+                salonId: salonId,
                 name: formData.name,
                 role: formData.role,
                 phone: formData.phone,
