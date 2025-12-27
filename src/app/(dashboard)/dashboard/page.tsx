@@ -42,6 +42,16 @@ interface Appointment {
     status: string;
 }
 
+// Transformed appointment for BookingsTable
+interface BookingAppointment {
+    id: string;
+    employeeName: string;
+    service: string;
+    status: string;
+    time: string;
+    customerName: string;
+}
+
 interface DashboardStats {
     totalClients: number;
     activeServices: number;
@@ -226,7 +236,14 @@ export default function DashboardPage() {
                     <div className={styles.leftColumn}>
                         {/* Bookings Table */}
                         <BookingsTable
-                            appointments={todayAppointments}
+                            appointments={todayAppointments.map(apt => ({
+                                id: apt.id,
+                                employeeName: staff.find(s => s.id === apt.staffId)?.name || 'Unknown',
+                                service: apt.serviceIds.map(id => services.find(s => s.id === id)?.name || '').filter(Boolean).join(', ') || 'Service',
+                                status: apt.status,
+                                time: apt.startTime,
+                                customerName: customers.find(c => c.id === apt.customerId)?.name || 'Walk-in',
+                            }))}
                             customers={customers}
                             staff={staff}
                             services={services}
