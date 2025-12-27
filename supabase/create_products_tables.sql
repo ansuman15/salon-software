@@ -141,15 +141,82 @@ ALTER TABLE public.bill_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 
--- Create RLS policies for products
-CREATE POLICY IF NOT EXISTS "products_select_policy" ON public.products
-    FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "products_insert_policy" ON public.products
-    FOR INSERT WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "products_update_policy" ON public.products
-    FOR UPDATE USING (true);
-CREATE POLICY IF NOT EXISTS "products_delete_policy" ON public.products
-    FOR DELETE USING (true);
+-- Drop existing policies if any (to avoid conflicts)
+DROP POLICY IF EXISTS "products_select_policy" ON public.products;
+DROP POLICY IF EXISTS "products_insert_policy" ON public.products;
+DROP POLICY IF EXISTS "products_update_policy" ON public.products;
+DROP POLICY IF EXISTS "products_delete_policy" ON public.products;
+
+-- Create RLS policies for products (allow all operations)
+CREATE POLICY "products_select_policy" ON public.products FOR SELECT USING (true);
+CREATE POLICY "products_insert_policy" ON public.products FOR INSERT WITH CHECK (true);
+CREATE POLICY "products_update_policy" ON public.products FOR UPDATE USING (true);
+CREATE POLICY "products_delete_policy" ON public.products FOR DELETE USING (true);
+
+-- Drop and create policies for inventory
+DROP POLICY IF EXISTS "inventory_select_policy" ON public.inventory;
+DROP POLICY IF EXISTS "inventory_insert_policy" ON public.inventory;
+DROP POLICY IF EXISTS "inventory_update_policy" ON public.inventory;
+DROP POLICY IF EXISTS "inventory_delete_policy" ON public.inventory;
+
+CREATE POLICY "inventory_select_policy" ON public.inventory FOR SELECT USING (true);
+CREATE POLICY "inventory_insert_policy" ON public.inventory FOR INSERT WITH CHECK (true);
+CREATE POLICY "inventory_update_policy" ON public.inventory FOR UPDATE USING (true);
+CREATE POLICY "inventory_delete_policy" ON public.inventory FOR DELETE USING (true);
+
+-- Drop and create policies for suppliers
+DROP POLICY IF EXISTS "suppliers_select_policy" ON public.suppliers;
+DROP POLICY IF EXISTS "suppliers_insert_policy" ON public.suppliers;
+DROP POLICY IF EXISTS "suppliers_update_policy" ON public.suppliers;
+DROP POLICY IF EXISTS "suppliers_delete_policy" ON public.suppliers;
+
+CREATE POLICY "suppliers_select_policy" ON public.suppliers FOR SELECT USING (true);
+CREATE POLICY "suppliers_insert_policy" ON public.suppliers FOR INSERT WITH CHECK (true);
+CREATE POLICY "suppliers_update_policy" ON public.suppliers FOR UPDATE USING (true);
+CREATE POLICY "suppliers_delete_policy" ON public.suppliers FOR DELETE USING (true);
+
+-- Drop and create policies for stock_movements
+DROP POLICY IF EXISTS "stock_movements_select_policy" ON public.stock_movements;
+DROP POLICY IF EXISTS "stock_movements_insert_policy" ON public.stock_movements;
+
+CREATE POLICY "stock_movements_select_policy" ON public.stock_movements FOR SELECT USING (true);
+CREATE POLICY "stock_movements_insert_policy" ON public.stock_movements FOR INSERT WITH CHECK (true);
+
+-- Drop and create policies for bills
+DROP POLICY IF EXISTS "bills_select_policy" ON public.bills;
+DROP POLICY IF EXISTS "bills_insert_policy" ON public.bills;
+DROP POLICY IF EXISTS "bills_update_policy" ON public.bills;
+
+CREATE POLICY "bills_select_policy" ON public.bills FOR SELECT USING (true);
+CREATE POLICY "bills_insert_policy" ON public.bills FOR INSERT WITH CHECK (true);
+CREATE POLICY "bills_update_policy" ON public.bills FOR UPDATE USING (true);
+
+-- Drop and create policies for bill_items
+DROP POLICY IF EXISTS "bill_items_select_policy" ON public.bill_items;
+DROP POLICY IF EXISTS "bill_items_insert_policy" ON public.bill_items;
+
+CREATE POLICY "bill_items_select_policy" ON public.bill_items FOR SELECT USING (true);
+CREATE POLICY "bill_items_insert_policy" ON public.bill_items FOR INSERT WITH CHECK (true);
+
+-- Drop and create policies for coupons
+DROP POLICY IF EXISTS "coupons_select_policy" ON public.coupons;
+DROP POLICY IF EXISTS "coupons_insert_policy" ON public.coupons;
+DROP POLICY IF EXISTS "coupons_update_policy" ON public.coupons;
+DROP POLICY IF EXISTS "coupons_delete_policy" ON public.coupons;
+
+CREATE POLICY "coupons_select_policy" ON public.coupons FOR SELECT USING (true);
+CREATE POLICY "coupons_insert_policy" ON public.coupons FOR INSERT WITH CHECK (true);
+CREATE POLICY "coupons_update_policy" ON public.coupons FOR UPDATE USING (true);
+CREATE POLICY "coupons_delete_policy" ON public.coupons FOR DELETE USING (true);
+
+-- Drop and create policies for attendance
+DROP POLICY IF EXISTS "attendance_select_policy" ON public.attendance;
+DROP POLICY IF EXISTS "attendance_insert_policy" ON public.attendance;
+DROP POLICY IF EXISTS "attendance_update_policy" ON public.attendance;
+
+CREATE POLICY "attendance_select_policy" ON public.attendance FOR SELECT USING (true);
+CREATE POLICY "attendance_insert_policy" ON public.attendance FOR INSERT WITH CHECK (true);
+CREATE POLICY "attendance_update_policy" ON public.attendance FOR UPDATE USING (true);
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_products_salon_id ON public.products(salon_id);
@@ -158,21 +225,3 @@ CREATE INDEX IF NOT EXISTS idx_inventory_product_id ON public.inventory(product_
 CREATE INDEX IF NOT EXISTS idx_bills_salon_id ON public.bills(salon_id);
 CREATE INDEX IF NOT EXISTS idx_bills_created_at ON public.bills(created_at);
 CREATE INDEX IF NOT EXISTS idx_attendance_salon_date ON public.attendance(salon_id, attendance_date);
-
--- Grant permissions
-GRANT ALL ON public.products TO authenticated;
-GRANT ALL ON public.products TO service_role;
-GRANT ALL ON public.inventory TO authenticated;
-GRANT ALL ON public.inventory TO service_role;
-GRANT ALL ON public.suppliers TO authenticated;
-GRANT ALL ON public.suppliers TO service_role;
-GRANT ALL ON public.stock_movements TO authenticated;
-GRANT ALL ON public.stock_movements TO service_role;
-GRANT ALL ON public.bills TO authenticated;
-GRANT ALL ON public.bills TO service_role;
-GRANT ALL ON public.bill_items TO authenticated;
-GRANT ALL ON public.bill_items TO service_role;
-GRANT ALL ON public.coupons TO authenticated;
-GRANT ALL ON public.coupons TO service_role;
-GRANT ALL ON public.attendance TO authenticated;
-GRANT ALL ON public.attendance TO service_role;
