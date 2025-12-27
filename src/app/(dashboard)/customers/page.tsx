@@ -87,24 +87,35 @@ export default function CustomersPage() {
         setIsSaving(true);
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            const created = db.customers.create({
-                salonId: salonId,
-                name: newCustomer.name,
-                phone: newCustomer.phone,
-                email: newCustomer.email,
-                notes: newCustomer.notes,
-                tags: ["New"],
+            // Use API to save to Supabase (not localStorage)
+            const res = await fetch('/api/customers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customers: [{
+                        name: newCustomer.name,
+                        phone: newCustomer.phone,
+                        email: newCustomer.email || null,
+                        notes: newCustomer.notes || null,
+                        tags: ['New']
+                    }]
+                }),
             });
 
-            setCustomers([...customers, created]);
-            setSelectedCustomer(created);
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to add customer');
+            }
+
+            // Refresh customer list from API
+            await loadCustomers();
             setShowAddModal(false);
             setNewCustomer({ name: "", phone: "", email: "", notes: "" });
-            toast.success(`Customer "${created.name}" added successfully!`);
+            toast.success(`Customer "${newCustomer.name}" added successfully!`);
         } catch (error) {
-            toast.error('Failed to add customer. Please try again.');
+            console.error('Error adding customer:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to add customer. Please try again.');
         } finally {
             setIsSaving(false);
         }
@@ -122,38 +133,67 @@ export default function CustomersPage() {
         setShowEditModal(true);
     };
 
-    const handleSaveEdit = () => {
+    const handleSaveEdit = async () => {
         if (!selectedCustomer || !editCustomer.name.trim() || !editCustomer.phone.trim()) return;
 
-        const updated = db.customers.update(selectedCustomer.id, {
-            name: editCustomer.name,
-            phone: editCustomer.phone,
-            email: editCustomer.email || undefined,
-            notes: editCustomer.notes || undefined,
-            tags: editCustomer.tags,
-        });
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/customers/${selectedCustomer.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: editCustomer.name,
+                    phone: editCustomer.phone,
+                    email: editCustomer.email || null,
+                    notes: editCustomer.notes || null,
+                    tags: editCustomer.tags,
+                }),
+            });
 
-        if (updated) {
-            setCustomers(customers.map(c => c.id === selectedCustomer.id ? updated : c));
-            setSelectedCustomer(updated);
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to update customer');
+            }
+
+            await loadCustomers();
+            setShowEditModal(false);
+            toast.success('Customer updated successfully');
+        } catch (error) {
+            console.error('Error updating customer:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to update customer');
+        } finally {
+            setIsSaving(false);
         }
-        setShowEditModal(false);
     };
 
     const handleDeleteClick = () => {
         setShowDeleteConfirm(true);
     };
 
-    const handleConfirmDelete = () => {
+    const handleConfirmDelete = async () => {
         if (!selectedCustomer) return;
 
-        const success = db.customers.delete(selectedCustomer.id);
-        if (success) {
-            const remaining = customers.filter(c => c.id !== selectedCustomer.id);
-            setCustomers(remaining);
-            setSelectedCustomer(remaining.length > 0 ? remaining[0] : null);
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/customers/${selectedCustomer.id}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to delete customer');
+            }
+
+            await loadCustomers();
+            setSelectedCustomer(null);
+            setShowDeleteConfirm(false);
+            toast.success('Customer deleted successfully');
+        } catch (error) {
+            console.error('Error deleting customer:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to delete customer');
+        } finally {
+            setIsSaving(false);
         }
-        setShowDeleteConfirm(false);
     };
 
     const handleBookAppointment = () => {
