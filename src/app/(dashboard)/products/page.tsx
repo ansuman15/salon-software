@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Header from "@/components/layout/Header";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import styles from "./page.module.css";
 
 type TabType = 'products' | 'inventory' | 'suppliers' | 'reports';
@@ -122,6 +123,14 @@ export default function ProductsPage() {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Realtime sync - auto-refresh when data changes in other browsers
+    const handleRealtimeUpdate = useCallback(() => {
+        loadData();
+    }, []);
+
+    useRealtimeSync({ table: 'products', onDataChange: handleRealtimeUpdate });
+    useRealtimeSync({ table: 'inventory', onDataChange: handleRealtimeUpdate });
 
     const loadData = async () => {
         setIsLoading(true);

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Header from "@/components/layout/Header";
 import Invoice from "@/components/Invoice";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import styles from "./page.module.css";
 
 interface Customer {
@@ -100,6 +101,14 @@ export default function BillingPage() {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Realtime sync - auto-refresh when data changes in other browsers
+    const handleRealtimeUpdate = useCallback(() => {
+        loadData();
+    }, []);
+
+    useRealtimeSync({ table: 'customers', onDataChange: handleRealtimeUpdate });
+    useRealtimeSync({ table: 'services', onDataChange: handleRealtimeUpdate });
 
     const loadData = async () => {
         setIsLoading(true);
