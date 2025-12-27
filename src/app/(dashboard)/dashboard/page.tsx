@@ -160,7 +160,7 @@ export default function DashboardPage() {
 
     // Realtime sync - auto-refresh when data changes
     useMultiRealtimeSync(
-        ['customers', 'services', 'staff', 'appointments'],
+        ['customers', 'services', 'staff', 'appointments', 'bills'],
         loadData,
         true
     );
@@ -192,7 +192,7 @@ export default function DashboardPage() {
                 {/* Stats Row */}
                 <div className={styles.statsGrid}>
                     <StatsCard
-                        title="Total Clients"
+                        title="Total Customers"
                         value={stats.totalClients.toString()}
                         icon="users"
                         variant="rose"

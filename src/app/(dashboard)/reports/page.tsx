@@ -1,15 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import Header from "@/components/layout/Header";
-import { db, Customer, Staff, Service, Appointment, Bill } from "@/lib/database";
+import { useMultiRealtimeSync } from "@/hooks/useRealtimeSync";
 import styles from "./page.module.css";
 
+interface Customer {
+    id: string;
+    name: string;
+    createdAt: string;
+}
+
+interface Appointment {
+    id: string;
+    staffId: string;
+    serviceIds: string[];
+    status: string;
+}
+
+interface Service {
+    id: string;
+    name: string;
+    price: number;
+}
+
+interface Staff {
+    id: string;
+    name: string;
+}
+
+interface ReportData {
+    todayRevenue: number;
+    weekRevenue: number;
+    monthRevenue: number;
+    totalCustomers: number;
+    newCustomersThisMonth: number;
+    totalAppointments: number;
+    completedAppointments: number;
+    cancelledAppointments: number;
+    topServices: { name: string; count: number; revenue: number }[];
+    staffPerformance: { name: string; appointments: number; revenue: number }[];
+}
+
 export default function ReportsPage() {
-    const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
-    const [data, setData] = useState({
+    const [data, setData] = useState<ReportData>({
         todayRevenue: 0,
         weekRevenue: 0,
         monthRevenue: 0,
@@ -18,90 +53,128 @@ export default function ReportsPage() {
         totalAppointments: 0,
         completedAppointments: 0,
         cancelledAppointments: 0,
-        topServices: [] as { name: string; count: number; revenue: number }[],
-        staffPerformance: [] as { name: string; appointments: number; revenue: number }[],
+        topServices: [],
+        staffPerformance: [],
     });
 
-    useEffect(() => {
-        calculateReports();
-    }, [router]);
+    const loadReports = useCallback(async () => {
+        try {
+            // Fetch all data in parallel
+            const [customersRes, appointmentsRes, servicesRes, staffRes, revenueRes] = await Promise.all([
+                fetch('/api/customers'),
+                fetch('/api/appointments'),
+                fetch('/api/services'),
+                fetch('/api/staff'),
+                fetch('/api/reports/revenue').catch(() => null),
+            ]);
 
-    const calculateReports = () => {
-        const customers = db.customers.getAll();
-        const appointments = db.appointments.getAll();
-        const services = db.services.getAll();
-        const staff = db.staff.getAll();
-        const bills = db.bills.getAll();
+            let customers: Customer[] = [];
+            let appointments: Appointment[] = [];
+            let services: Service[] = [];
+            let staff: Staff[] = [];
 
-        const now = new Date();
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-        // New customers this month
-        const newCustomersThisMonth = customers.filter(c => new Date(c.createdAt) >= monthAgo).length;
-
-        // Top services by booking count
-        const serviceCount: Record<string, { count: number; revenue: number }> = {};
-        appointments.forEach(apt => {
-            apt.serviceIds.forEach(id => {
-                if (!serviceCount[id]) serviceCount[id] = { count: 0, revenue: 0 };
-                serviceCount[id].count++;
-                const service = services.find(s => s.id === id);
-                if (service) serviceCount[id].revenue += service.price;
-            });
-        });
-
-        const topServices = Object.entries(serviceCount)
-            .map(([id, data]) => ({
-                name: services.find(s => s.id === id)?.name || 'Unknown',
-                count: data.count,
-                revenue: data.revenue,
-            }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5);
-
-        // Staff performance
-        const staffStats: Record<string, { appointments: number; revenue: number }> = {};
-        appointments.forEach(apt => {
-            if (!staffStats[apt.staffId]) staffStats[apt.staffId] = { appointments: 0, revenue: 0 };
-            staffStats[apt.staffId].appointments++;
-        });
-
-        bills.forEach(bill => {
-            const apt = appointments.find(a => a.id === bill.appointmentId);
-            if (apt && staffStats[apt.staffId]) {
-                staffStats[apt.staffId].revenue += bill.finalAmount;
+            if (customersRes.ok) {
+                const d = await customersRes.json();
+                customers = d.customers || [];
             }
-        });
+            if (appointmentsRes.ok) {
+                const d = await appointmentsRes.json();
+                appointments = d.appointments || [];
+            }
+            if (servicesRes.ok) {
+                const d = await servicesRes.json();
+                services = d.services || [];
+            }
+            if (staffRes.ok) {
+                const d = await staffRes.json();
+                staff = d.staff || [];
+            }
 
-        const staffPerformance = Object.entries(staffStats)
-            .map(([id, data]) => ({
-                name: staff.find(s => s.id === id)?.name || 'Unknown',
-                appointments: data.appointments,
-                revenue: data.revenue,
-            }))
-            .sort((a, b) => b.appointments - a.appointments)
-            .slice(0, 5);
+            // Get revenue from API
+            let todayRevenue = 0, weekRevenue = 0, monthRevenue = 0;
+            if (revenueRes && revenueRes.ok) {
+                const revenueData = await revenueRes.json();
+                todayRevenue = revenueData.today || 0;
+                weekRevenue = revenueData.week || 0;
+                monthRevenue = revenueData.month || 0;
+            }
 
-        setData({
-            todayRevenue: db.bills.getTodayRevenue(),
-            weekRevenue: db.bills.getWeekRevenue(),
-            monthRevenue: db.bills.getMonthRevenue(),
-            totalCustomers: customers.length,
-            newCustomersThisMonth,
-            totalAppointments: appointments.length,
-            completedAppointments: appointments.filter(a => a.status === 'completed').length,
-            cancelledAppointments: appointments.filter(a => a.status === 'cancelled').length,
-            topServices,
-            staffPerformance,
-        });
+            // Calculate new customers this month
+            const monthAgo = new Date();
+            monthAgo.setDate(monthAgo.getDate() - 30);
+            const newCustomersThisMonth = customers.filter(c => new Date(c.createdAt) >= monthAgo).length;
 
-        setIsLoading(false);
-    };
+            // Calculate top services
+            const serviceCount: Record<string, { count: number; revenue: number }> = {};
+            appointments.forEach(apt => {
+                apt.serviceIds.forEach(id => {
+                    if (!serviceCount[id]) serviceCount[id] = { count: 0, revenue: 0 };
+                    serviceCount[id].count++;
+                    const service = services.find(s => s.id === id);
+                    if (service) serviceCount[id].revenue += service.price;
+                });
+            });
+
+            const topServices = Object.entries(serviceCount)
+                .map(([id, data]) => ({
+                    name: services.find(s => s.id === id)?.name || 'Unknown',
+                    count: data.count,
+                    revenue: data.revenue,
+                }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+
+            // Calculate staff performance
+            const staffStats: Record<string, { appointments: number; revenue: number }> = {};
+            appointments.forEach(apt => {
+                if (!staffStats[apt.staffId]) staffStats[apt.staffId] = { appointments: 0, revenue: 0 };
+                staffStats[apt.staffId].appointments++;
+            });
+
+            const staffPerformance = Object.entries(staffStats)
+                .map(([id, stats]) => ({
+                    name: staff.find(s => s.id === id)?.name || 'Unknown',
+                    appointments: stats.appointments,
+                    revenue: stats.revenue,
+                }))
+                .sort((a, b) => b.appointments - a.appointments)
+                .slice(0, 5);
+
+            setData({
+                todayRevenue,
+                weekRevenue,
+                monthRevenue,
+                totalCustomers: customers.length,
+                newCustomersThisMonth,
+                totalAppointments: appointments.length,
+                completedAppointments: appointments.filter(a => a.status === 'completed').length,
+                cancelledAppointments: appointments.filter(a => a.status === 'cancelled').length,
+                topServices,
+                staffPerformance,
+            });
+
+        } catch (error) {
+            console.error('Failed to load reports:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadReports();
+    }, [loadReports]);
+
+    // Realtime sync - auto-refresh when data changes
+    useMultiRealtimeSync(
+        ['customers', 'appointments', 'services', 'staff', 'bills'],
+        loadReports,
+        true
+    );
 
     const formatCurrency = (amount: number) => {
         if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
         if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
-        return `₹${amount}`;
+        return `₹${amount.toLocaleString()}`;
     };
 
     if (isLoading) {
@@ -179,14 +252,14 @@ export default function ReportsPage() {
                             <p className={styles.emptyChart}>No data yet</p>
                         ) : (
                             <div className={styles.chartList}>
-                                {data.staffPerformance.map((staff, idx) => (
+                                {data.staffPerformance.map((staffMember, idx) => (
                                     <div key={idx} className={styles.chartItem}>
                                         <div className={styles.chartRank}>{idx + 1}</div>
                                         <div className={styles.chartInfo}>
-                                            <span className={styles.chartName}>{staff.name}</span>
-                                            <span className={styles.chartMeta}>{staff.appointments} appointments</span>
+                                            <span className={styles.chartName}>{staffMember.name}</span>
+                                            <span className={styles.chartMeta}>{staffMember.appointments} appointments</span>
                                         </div>
-                                        <span className={styles.chartValue}>{formatCurrency(staff.revenue)}</span>
+                                        <span className={styles.chartValue}>{formatCurrency(staffMember.revenue)}</span>
                                     </div>
                                 ))}
                             </div>

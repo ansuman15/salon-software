@@ -24,7 +24,7 @@ function getRealtimeClient() {
     return realtimeClient;
 }
 
-type TableName = 'appointments' | 'staff' | 'services' | 'customers' | 'products' | 'inventory' | 'attendance';
+type TableName = 'appointments' | 'staff' | 'services' | 'customers' | 'products' | 'inventory' | 'attendance' | 'bills' | 'salons';
 
 interface UseRealtimeSyncOptions {
     table: TableName;
