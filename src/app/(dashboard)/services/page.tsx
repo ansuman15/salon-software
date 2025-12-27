@@ -96,6 +96,12 @@ export default function ServicesPage() {
 
             const data = await res.json();
 
+            if (res.status === 401) {
+                toast.error('Session expired. Please login again.');
+                router.push('/login');
+                return;
+            }
+
             if (res.ok && data.success) {
                 setServices(prev => [...prev, data.service]);
                 setShowAddModal(false);
@@ -106,7 +112,7 @@ export default function ServicesPage() {
             }
         } catch (error) {
             console.error('Add service error:', error);
-            toast.error('Failed to add service. Please try again.');
+            toast.error('Failed to add service. Please check your connection and try again.');
         } finally {
             setIsSaving(false);
         }
@@ -150,6 +156,12 @@ export default function ServicesPage() {
 
             const data = await res.json();
 
+            if (res.status === 401) {
+                toast.error('Session expired. Please login again.');
+                router.push('/login');
+                return;
+            }
+
             if (res.ok && data.success) {
                 setServices(prev => prev.map(s => s.id === selectedService.id ? data.service : s));
                 toast.success('Service updated successfully!');
@@ -158,7 +170,7 @@ export default function ServicesPage() {
             }
         } catch (error) {
             console.error('Edit service error:', error);
-            toast.error('Failed to update service. Please try again.');
+            toast.error('Failed to update service. Please check your connection and try again.');
         } finally {
             setShowEditModal(false);
             setSelectedService(null);
@@ -272,7 +284,8 @@ export default function ServicesPage() {
         return <div className={styles.loading}><div className={styles.spinner}></div></div>;
     }
 
-    const ServiceModal = ({ isEdit }: { isEdit: boolean }) => (
+    // Modal JSX - inlined to prevent focus issues from re-rendering
+    const renderServiceModal = (isEdit: boolean) => (
         <div className={styles.modalOverlay} onClick={() => { isEdit ? setShowEditModal(false) : setShowAddModal(false); resetForm(); }}>
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
                 <h3>{isEdit ? 'Edit Service' : 'Add New Service'}</h3>
@@ -307,6 +320,7 @@ export default function ServicesPage() {
                         placeholder="Service Name *"
                         value={formData.name}
                         onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        autoFocus
                     />
                     <select
                         value={formData.category}
@@ -438,10 +452,10 @@ export default function ServicesPage() {
             </div>
 
             {/* Add Service Modal */}
-            {showAddModal && <ServiceModal isEdit={false} />}
+            {showAddModal && renderServiceModal(false)}
 
             {/* Edit Service Modal */}
-            {showEditModal && <ServiceModal isEdit={true} />}
+            {showEditModal && renderServiceModal(true)}
 
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && selectedService && (

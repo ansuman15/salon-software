@@ -365,3 +365,81 @@
         flex: 1 1 45%;
     }
 }
+
+/* Photo Upload Section */
+.photoSection {
+    margin-bottom: var(--space-4);
+}
+
+.photoSection>label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+}
+
+.photoUpload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-5);
+    background: var(--bg-secondary);
+    border: 2px dashed var(--border-light);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.photoUpload:hover {
+    border-color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.uploadIcon {
+    font-size: 32px;
+    margin-bottom: var(--space-2);
+}
+
+.photoUpload span:not(.uploadIcon) {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.photoPreview {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-secondary);
+}
+
+.photoPreview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.removePhoto {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background var(--transition-fast);
+}
+
+.removePhoto:hover {
+    background: var(--error);
+}

@@ -68,7 +68,7 @@ export async function PATCH(
         }
 
         const body = await request.json();
-        const { name, category, brand, type, unit, cost_price, selling_price, is_active } = body;
+        const { name, category, brand, type, unit, cost_price, selling_price, is_active, image_url } = body;
 
         const updates: Record<string, unknown> = {};
         if (name !== undefined) updates.name = name;
@@ -87,6 +87,7 @@ export async function PATCH(
         if (cost_price !== undefined) updates.cost_price = cost_price;
         if (selling_price !== undefined) updates.selling_price = selling_price;
         if (is_active !== undefined) updates.is_active = is_active;
+        if (image_url !== undefined) updates.image_url = image_url || null;
 
         const supabase = getSupabaseAdmin();
         const { data, error } = await supabase

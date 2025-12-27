@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, category, brand, type, unit, cost_price, selling_price } = body;
+        const { name, category, brand, type, unit, cost_price, selling_price, image_url } = body;
 
         if (!name || !type || !unit) {
             return NextResponse.json(
@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
                 unit,
                 cost_price: cost_price || null,
                 selling_price: selling_price || null,
+                image_url: image_url || null,
             })
             .select()
             .single();

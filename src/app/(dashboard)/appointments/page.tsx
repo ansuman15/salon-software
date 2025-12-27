@@ -74,10 +74,12 @@ export default function AppointmentsPage() {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            // Fetch appointments from Supabase
-            const [aptsRes, custsRes] = await Promise.all([
+            // Fetch all data from API endpoints in parallel
+            const [aptsRes, custsRes, staffRes, servicesRes] = await Promise.all([
                 fetch('/api/appointments'),
-                fetch('/api/customers')
+                fetch('/api/customers'),
+                fetch('/api/staff'),
+                fetch('/api/services')
             ]);
 
             if (aptsRes.ok) {
@@ -90,9 +92,23 @@ export default function AppointmentsPage() {
                 setCustomers(custsData.customers || []);
             }
 
-            // Get staff and services from localStorage for now
-            setStaff(db.staff.getAll().filter(s => s.isActive));
-            setServices(db.services.getAll().filter(s => s.isActive));
+            // Fetch staff from API
+            if (staffRes.ok) {
+                const staffData = await staffRes.json();
+                setStaff((staffData.staff || []).filter((s: Staff) => s.isActive));
+            } else {
+                // Fallback to localStorage
+                setStaff(db.staff.getAll().filter(s => s.isActive));
+            }
+
+            // Fetch services from API
+            if (servicesRes.ok) {
+                const servicesData = await servicesRes.json();
+                setServices((servicesData.services || []).filter((s: Service) => s.isActive));
+            } else {
+                // Fallback to localStorage
+                setServices(db.services.getAll().filter(s => s.isActive));
+            }
         } catch (error) {
             console.error('Error loading data:', error);
             // Fallback to localStorage

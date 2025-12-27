@@ -195,6 +195,12 @@ export default function StaffPage() {
 
                 const data = await res.json();
 
+                if (res.status === 401) {
+                    toast.error('Session expired. Please login again.');
+                    router.push('/login');
+                    return;
+                }
+
                 if (res.ok && data.success) {
                     setStaff(prev => [...prev, data.staff]);
                     toast.success(`Staff "${data.staff.name}" added successfully!`);
@@ -217,6 +223,12 @@ export default function StaffPage() {
 
                 const data = await res.json();
 
+                if (res.status === 401) {
+                    toast.error('Session expired. Please login again.');
+                    router.push('/login');
+                    return;
+                }
+
                 if (res.ok && data.success) {
                     setStaff(prev => prev.map(s => s.id === selectedStaff.id ? data.staff : s));
                     toast.success('Staff updated successfully!');
@@ -227,7 +239,7 @@ export default function StaffPage() {
             }
         } catch (error) {
             console.error('Save staff error:', error);
-            toast.error('Failed to save staff. Please try again.');
+            toast.error('Failed to save staff. Please check your connection and try again.');
         } finally {
             setIsSaving(false);
         }

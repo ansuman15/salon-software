@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Header from "@/components/layout/Header";
 import styles from "./page.module.css";
 
@@ -17,6 +17,7 @@ interface Product {
     cost_price: number | null;
     selling_price: number | null;
     is_active: boolean;
+    image_url: string | null;
 }
 
 interface InventoryItem {
@@ -67,8 +68,42 @@ export default function ProductsPage() {
     // Form states
     const [productForm, setProductForm] = useState({
         name: '', category: '', brand: '', type: 'service_use' as ProductType,
-        unit: 'pcs', cost_price: '', selling_price: '',
+        unit: 'pcs', cost_price: '', selling_price: '', image_url: '',
     });
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // 5MB limit for product images
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            setError('Please upload an image file');
+            return;
+        }
+
+        // Validate file size (5MB limit)
+        if (file.size > MAX_IMAGE_SIZE) {
+            setError('Image must be under 5MB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setProductForm(prev => ({ ...prev, image_url: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeImage = () => {
+        setProductForm(prev => ({ ...prev, image_url: '' }));
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
     const [supplierForm, setSupplierForm] = useState({
         name: '', contact_person: '', phone: '', email: '',
     });
@@ -172,9 +207,12 @@ export default function ProductsPage() {
     const resetProductForm = () => {
         setProductForm({
             name: '', category: '', brand: '', type: 'service_use',
-            unit: 'pcs', cost_price: '', selling_price: '',
+            unit: 'pcs', cost_price: '', selling_price: '', image_url: '',
         });
         setEditingProduct(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     const openEditProduct = (product: Product) => {
@@ -187,6 +225,7 @@ export default function ProductsPage() {
             unit: product.unit,
             cost_price: product.cost_price?.toString() || '',
             selling_price: product.selling_price?.toString() || '',
+            image_url: product.image_url || '',
         });
         setShowProductModal(true);
     };
@@ -521,6 +560,32 @@ export default function ProductsPage() {
                     <div className={styles.modalOverlay} onClick={() => { setShowProductModal(false); resetProductForm(); }}>
                         <div className={styles.modal} onClick={e => e.stopPropagation()}>
                             <h2>{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
+
+                            {/* Image Upload Section */}
+                            <div className={styles.photoSection}>
+                                <label>Product Photo (Optional, max 5MB)</label>
+                                {productForm.image_url ? (
+                                    <div className={styles.photoPreview}>
+                                        <img src={productForm.image_url} alt="Product" />
+                                        <button type="button" className={styles.removePhoto} onClick={removeImage}>
+                                            ✕
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className={styles.photoUpload} onClick={() => fileInputRef.current?.click()}>
+                                        <span className={styles.uploadIcon}>📷</span>
+                                        <span>Click to upload photo</span>
+                                    </div>
+                                )}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    style={{ display: 'none' }}
+                                />
+                            </div>
+
                             <div className={styles.formGrid}>
                                 <div className={styles.formGroup}>
                                     <label>Name *</label>
