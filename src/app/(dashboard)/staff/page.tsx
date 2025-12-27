@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { db, Staff, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -53,6 +54,13 @@ export default function StaffPage() {
     useEffect(() => {
         loadStaff();
     }, []);
+
+    // Realtime sync - auto-refresh when data changes in other browsers
+    const handleRealtimeUpdate = useCallback(() => {
+        loadStaff();
+    }, []);
+
+    useRealtimeSync({ table: 'staff', onDataChange: handleRealtimeUpdate });
 
     const loadStaff = async () => {
         setIsLoading(true);

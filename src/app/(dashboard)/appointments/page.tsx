@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { db, Appointment, Customer, Staff, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -43,7 +44,14 @@ export default function AppointmentsPage() {
         loadData();
         // Check if navigated from customers page with customer context
         checkCustomerContext();
-    }, [router]);
+    }, []);
+
+    // Realtime sync - auto-refresh when data changes in other browsers
+    const handleRealtimeUpdate = useCallback(() => {
+        loadData();
+    }, []);
+
+    useRealtimeSync({ table: 'appointments', onDataChange: handleRealtimeUpdate });
 
     const checkCustomerContext = () => {
         const contextStr = localStorage.getItem('salonx_book_for_customer');

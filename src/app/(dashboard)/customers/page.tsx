@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import BulkImportModal, { CustomerData } from "@/components/customers/BulkImportModal";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { db, Customer } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -28,6 +29,13 @@ export default function CustomersPage() {
     useEffect(() => {
         loadCustomers();
     }, []);
+
+    // Realtime sync - auto-refresh when data changes in other browsers
+    const handleRealtimeUpdate = useCallback(() => {
+        loadCustomers();
+    }, []);
+
+    useRealtimeSync({ table: 'customers', onDataChange: handleRealtimeUpdate });
 
     const loadCustomers = async () => {
         setIsLoading(true);

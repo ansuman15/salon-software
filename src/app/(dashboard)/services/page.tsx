@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { db, Service } from "@/lib/database";
 import styles from "./page.module.css";
 
@@ -37,6 +38,13 @@ export default function ServicesPage() {
     useEffect(() => {
         loadServices();
     }, []);
+
+    // Realtime sync - auto-refresh when data changes in other browsers
+    const handleRealtimeUpdate = useCallback(() => {
+        loadServices();
+    }, []);
+
+    useRealtimeSync({ table: 'services', onDataChange: handleRealtimeUpdate });
 
     const loadServices = async () => {
         setIsLoading(true);
