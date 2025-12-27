@@ -108,7 +108,13 @@ export async function POST(request: NextRequest) {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Products Supabase INSERT error:', error);
+            return NextResponse.json(
+                { error: error.message || 'Database error', details: error.details, hint: error.hint },
+                { status: 500 }
+            );
+        }
 
         return NextResponse.json({
             success: true,
@@ -117,6 +123,7 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error('Products POST error:', error);
-        return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create product';
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

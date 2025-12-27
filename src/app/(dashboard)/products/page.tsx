@@ -200,13 +200,17 @@ export default function ProductsPage() {
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+            if (!res.ok) {
+                const errorDetails = data.hint ? `${data.error} (Hint: ${data.hint})` : data.error;
+                throw new Error(errorDetails || 'Failed to save product');
+            }
 
             setSuccess(data.message);
             setShowProductModal(false);
             resetProductForm();
             loadData();
         } catch (err: unknown) {
+            console.error('Product save error:', err);
             setError(err instanceof Error ? err.message : 'Failed to save product');
         } finally {
             setIsSaving(false);
