@@ -3,10 +3,18 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
-import { db, Staff } from "@/lib/database";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import styles from "./page.module.css";
 
 type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'leave' | '';
+
+interface Staff {
+    id: string;
+    name: string;
+    role: string;
+    imageUrl?: string;
+    isActive: boolean;
+}
 
 interface AttendanceRecord {
     staff_id: string;
@@ -49,12 +57,28 @@ export default function AttendancePage() {
     const getDateStr = (date: Date) => date.toISOString().split('T')[0];
     const todayStr = getDateStr(new Date());
 
-    // Load staff from local database
+    // Load staff from API
+    const loadStaff = useCallback(async () => {
+        try {
+            const res = await fetch('/api/staff');
+            if (res.ok) {
+                const data = await res.json();
+                const activeStaff = (data.staff || []).filter((s: Staff) => s.isActive !== false);
+                setStaff(activeStaff);
+            }
+        } catch (err) {
+            console.error('Failed to load staff:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
-        const activeStaff = db.staff.getAll().filter(s => s.isActive);
-        setStaff(activeStaff);
-        setIsLoading(false);
-    }, [router]);
+        loadStaff();
+    }, [loadStaff]);
+
+    // Realtime sync - auto-refresh staff when changes occur
+    useRealtimeSync({ table: 'staff', onDataChange: loadStaff });
 
     // Load attendance when date changes
     useEffect(() => {
