@@ -1,5 +1,6 @@
 "use client";
 
+// Force rebuild - no database imports here
 import { useState } from "react";
 import Link from "next/link";
 import styles from "./BookingsTable.module.css";
