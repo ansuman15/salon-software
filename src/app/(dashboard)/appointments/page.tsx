@@ -32,6 +32,7 @@ interface Staff {
     id: string;
     name: string;
     role: string;
+    isActive?: boolean;
 }
 
 interface Service {
@@ -39,6 +40,7 @@ interface Service {
     name: string;
     durationMinutes: number;
     price: number;
+    isActive?: boolean;
 }
 
 type ViewMode = 'day' | 'week';
@@ -135,27 +137,16 @@ export default function AppointmentsPage() {
             // Fetch staff from API
             if (staffRes.ok) {
                 const staffData = await staffRes.json();
-                setStaff((staffData.staff || []).filter((s: Staff) => s.isActive));
-            } else {
-                // Fallback to localStorage
-                setStaff(db.staff.getAll().filter(s => s.isActive));
+                setStaff((staffData.staff || []).filter((s: Staff) => s.isActive !== false));
             }
 
             // Fetch services from API
             if (servicesRes.ok) {
                 const servicesData = await servicesRes.json();
-                setServices((servicesData.services || []).filter((s: Service) => s.isActive));
-            } else {
-                // Fallback to localStorage
-                setServices(db.services.getAll().filter(s => s.isActive));
+                setServices((servicesData.services || []).filter((s: Service) => s.isActive !== false));
             }
         } catch (error) {
             console.error('Error loading data:', error);
-            // Fallback to localStorage
-            setAppointments(db.appointments.getAll());
-            setCustomers(db.customers.getAll());
-            setStaff(db.staff.getAll().filter(s => s.isActive));
-            setServices(db.services.getAll().filter(s => s.isActive));
         } finally {
             setIsLoading(false);
         }
