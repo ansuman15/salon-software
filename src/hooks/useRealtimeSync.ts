@@ -52,7 +52,8 @@ export function useRealtimeSync({ table, onDataChange, enabled = true }: UseReal
 
     useEffect(() => {
         // Don't subscribe if disabled or no session
-        if (!enabled || !session?.salon?.id) {
+        const salonId = session?.salon?.id;
+        if (!enabled || !salonId) {
             return;
         }
 
@@ -69,7 +70,7 @@ export function useRealtimeSync({ table, onDataChange, enabled = true }: UseReal
         }
 
         // Subscribe to realtime changes
-        const channelName = `${table}_${session.salon.id}`;
+        const channelName = `${table}_${salonId}`;
 
         channelRef.current = client
             .channel(channelName)
@@ -79,7 +80,7 @@ export function useRealtimeSync({ table, onDataChange, enabled = true }: UseReal
                     event: '*', // Listen to INSERT, UPDATE, DELETE
                     schema: 'public',
                     table: table,
-                    filter: `salon_id=eq.${session.salon.id}`,
+                    filter: `salon_id=eq.${salonId}`,
                 },
                 (payload) => {
                     console.log(`[Realtime] ${table} changed:`, payload.eventType);
@@ -118,7 +119,8 @@ export function useMultiRealtimeSync(
     const { session } = useSession();
 
     useEffect(() => {
-        if (!enabled || !session?.salon?.id) return;
+        const salonId = session?.salon?.id;
+        if (!enabled || !salonId) return;
 
         const client = getRealtimeClient();
 
@@ -132,14 +134,14 @@ export function useMultiRealtimeSync(
 
         tables.forEach((table) => {
             const channel = client
-                .channel(`${table}_${session.salon.id}`)
+                .channel(`${table}_${salonId}`)
                 .on(
                     'postgres_changes',
                     {
                         event: '*',
                         schema: 'public',
                         table: table,
-                        filter: `salon_id=eq.${session.salon.id}`,
+                        filter: `salon_id=eq.${salonId}`,
                     },
                     () => onDataChange()
                 )
