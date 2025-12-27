@@ -271,19 +271,36 @@ export default function AppointmentsPage() {
         }
     };
 
-    const handleCancel = () => {
+    const handleCancel = async () => {
         if (!selectedAppointment) return;
 
-        const updated = db.appointments.update(selectedAppointment.id, {
-            status: "cancelled",
-            notes: cancelReason ? `${selectedAppointment.notes || ''}\n[Cancelled: ${cancelReason}]`.trim() : selectedAppointment.notes,
-        });
+        setIsSaving(true);
+        try {
+            const res = await fetch('/api/appointments', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: selectedAppointment.id,
+                    status: 'cancelled',
+                    notes: cancelReason ? `${selectedAppointment.notes || ''}\n[Cancelled: ${cancelReason}]`.trim() : selectedAppointment.notes,
+                }),
+            });
 
-        if (updated) {
-            setAppointments(appointments.map(a => a.id === selectedAppointment.id ? updated : a));
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setAppointments(appointments.map(a => a.id === selectedAppointment.id ? data.appointment : a));
+                toast.success('Appointment cancelled');
+            } else {
+                toast.error(data.error || 'Failed to cancel appointment');
+            }
+        } catch (error) {
+            console.error('Cancel appointment error:', error);
+            toast.error('Failed to cancel appointment');
+        } finally {
+            setIsSaving(false);
+            closeModal();
         }
-
-        closeModal();
     };
 
     const toggleService = (serviceId: string) => {
@@ -300,10 +317,25 @@ export default function AppointmentsPage() {
     const getServiceNames = (ids: string[]) => ids.map(id => services.find(s => s.id === id)?.name || '').filter(Boolean).join(', ');
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-    const updateStatus = (id: string, status: Appointment['status']) => {
-        const updated = db.appointments.update(id, { status });
-        if (updated) {
-            setAppointments(appointments.map(a => a.id === id ? updated : a));
+    const updateStatus = async (id: string, status: Appointment['status']) => {
+        try {
+            const res = await fetch('/api/appointments', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, status }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setAppointments(appointments.map(a => a.id === id ? data.appointment : a));
+                toast.success(`Appointment marked as ${status}`);
+            } else {
+                toast.error(data.error || 'Failed to update status');
+            }
+        } catch (error) {
+            console.error('Update status error:', error);
+            toast.error('Failed to update status');
         }
     };
 
