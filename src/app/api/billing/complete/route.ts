@@ -8,8 +8,8 @@ interface SessionData {
     salonId: string;
 }
 
-function getSession(): SessionData | null {
-    const cookieStore = cookies();
+async function getSession(): Promise<SessionData | null> {
+    const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('salonx_session');
     if (!sessionCookie) return null;
     try {
@@ -32,7 +32,7 @@ interface BillItem {
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = getSession();
+        const session = await getSession();
         if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
