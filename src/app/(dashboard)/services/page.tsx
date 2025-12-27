@@ -6,8 +6,18 @@ import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { db, Service } from "@/lib/database";
 import styles from "./page.module.css";
+
+interface Service {
+    id: string;
+    name: string;
+    category: string;
+    durationMinutes: number;
+    price: number;
+    description?: string;
+    imageUrl?: string;
+    isActive: boolean;
+}
 
 const categories = ["All", "Hair", "Skin", "Nails", "Spa", "Bridal", "Other"];
 
@@ -54,12 +64,10 @@ export default function ServicesPage() {
                 const data = await res.json();
                 setServices(data.services || []);
             } else {
-                // Fallback to localStorage
-                setServices(db.services.getAll());
+                console.error('Failed to load services');
             }
         } catch (error) {
             console.error('Error loading services:', error);
-            setServices(db.services.getAll());
         } finally {
             setIsLoading(false);
         }

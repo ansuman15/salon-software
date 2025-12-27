@@ -6,8 +6,40 @@ import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { db, Appointment, Customer, Staff, Service } from "@/lib/database";
 import styles from "./page.module.css";
+
+interface Appointment {
+    id: string;
+    customerId: string;
+    staffId: string;
+    appointmentDate: string;
+    startTime: string;
+    endTime: string;
+    serviceIds: string[];
+    status: string;
+    notes?: string;
+    customerName?: string;
+    customerPhone?: string;
+}
+
+interface Customer {
+    id: string;
+    name: string;
+    phone: string;
+}
+
+interface Staff {
+    id: string;
+    name: string;
+    role: string;
+}
+
+interface Service {
+    id: string;
+    name: string;
+    durationMinutes: number;
+    price: number;
+}
 
 type ViewMode = 'day' | 'week';
 type ModalMode = 'add' | 'edit' | null;

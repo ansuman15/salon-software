@@ -6,8 +6,22 @@ import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { db, Staff, Service } from "@/lib/database";
 import styles from "./page.module.css";
+
+interface Staff {
+    id: string;
+    name: string;
+    phone?: string;
+    role: string;
+    imageUrl?: string;
+    isActive: boolean;
+    serviceIds: string[];
+}
+
+interface Service {
+    id: string;
+    name: string;
+}
 
 // Extended roles for salon staff
 const STAFF_ROLES = [
@@ -73,20 +87,14 @@ export default function StaffPage() {
             if (staffRes.ok) {
                 const data = await staffRes.json();
                 setStaff(data.staff || []);
-            } else {
-                setStaff(db.staff.getAll());
             }
 
             if (servicesRes.ok) {
                 const data = await servicesRes.json();
                 setServices(data.services || []);
-            } else {
-                setServices(db.services.getAll());
             }
         } catch (error) {
             console.error('Error loading staff:', error);
-            setStaff(db.staff.getAll());
-            setServices(db.services.getAll());
         } finally {
             setIsLoading(false);
         }
