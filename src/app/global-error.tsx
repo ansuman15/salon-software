@@ -1,6 +1,5 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 export default function GlobalError({
@@ -11,7 +10,8 @@ export default function GlobalError({
     reset: () => void;
 }) {
     useEffect(() => {
-        Sentry.captureException(error);
+        // Log error to console (visible in Vercel logs)
+        console.error('Application error:', error);
     }, [error]);
 
     return (
@@ -29,7 +29,7 @@ export default function GlobalError({
                 }}>
                     <h2 style={{ marginBottom: '16px' }}>Something went wrong!</h2>
                     <p style={{ color: '#666', marginBottom: '24px' }}>
-                        We've been notified and are working to fix the issue.
+                        Please try again or contact support if the problem persists.
                     </p>
                     <button
                         onClick={() => reset()}
