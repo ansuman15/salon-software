@@ -29,8 +29,8 @@ interface SessionData {
 /**
  * Get session from cookie
  */
-function getSession(): SessionData | null {
-    const cookieStore = cookies();
+async function getSession(): Promise<SessionData | null> {
+    const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('salonx_session');
 
     if (!sessionCookie) return null;
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         const staffId = searchParams.get('staff_id');
         const month = searchParams.get('month'); // YYYY-MM format for monthly view
 
-        const session = getSession();
+        const session = await getSession();
         if (!session?.salonId) {
             return NextResponse.json(
                 { error: 'Not authenticated' },
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const session = getSession();
+        const session = await getSession();
         if (!session?.salonId) {
             return NextResponse.json(
                 { error: 'Not authenticated' },
