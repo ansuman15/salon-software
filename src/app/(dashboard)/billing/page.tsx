@@ -422,6 +422,10 @@ export default function BillingPage() {
                                         setShowCustomerDropdown(true);
                                     }}
                                     onFocus={() => setShowCustomerDropdown(true)}
+                                    onBlur={() => {
+                                        // Delay hiding dropdown to allow click to register
+                                        setTimeout(() => setShowCustomerDropdown(false), 200);
+                                    }}
                                 />
                                 {showCustomerDropdown && customerSearch && filteredCustomers.length > 0 && (
                                     <div className={styles.customerDropdown}>
@@ -429,7 +433,8 @@ export default function BillingPage() {
                                             <button
                                                 key={c.id}
                                                 className={styles.customerOption}
-                                                onClick={() => {
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault(); // Prevent blur
                                                     setSelectedCustomer(c);
                                                     setCustomerSearch("");
                                                     setShowCustomerDropdown(false);
