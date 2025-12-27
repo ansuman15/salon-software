@@ -52,7 +52,7 @@ export function useRealtimeSync({ table, onDataChange, enabled = true }: UseReal
 
     useEffect(() => {
         // Don't subscribe if disabled or no session
-        if (!enabled || !session?.salonId) {
+        if (!enabled || !session?.salon?.id) {
             return;
         }
 
@@ -69,7 +69,7 @@ export function useRealtimeSync({ table, onDataChange, enabled = true }: UseReal
         }
 
         // Subscribe to realtime changes
-        const channelName = `${table}_${session.salonId}`;
+        const channelName = `${table}_${session.salon.id}`;
 
         channelRef.current = client
             .channel(channelName)
@@ -79,7 +79,7 @@ export function useRealtimeSync({ table, onDataChange, enabled = true }: UseReal
                     event: '*', // Listen to INSERT, UPDATE, DELETE
                     schema: 'public',
                     table: table,
-                    filter: `salon_id=eq.${session.salonId}`,
+                    filter: `salon_id=eq.${session.salon.id}`,
                 },
                 (payload) => {
                     console.log(`[Realtime] ${table} changed:`, payload.eventType);
@@ -97,7 +97,7 @@ export function useRealtimeSync({ table, onDataChange, enabled = true }: UseReal
                 channelRef.current = null;
             }
         };
-    }, [table, session?.salonId, enabled]);
+    }, [table, session?.salon?.id, enabled]);
 
     // Manual refresh function
     const refresh = useCallback(() => {
@@ -118,7 +118,7 @@ export function useMultiRealtimeSync(
     const { session } = useSession();
 
     useEffect(() => {
-        if (!enabled || !session?.salonId) return;
+        if (!enabled || !session?.salon?.id) return;
 
         const client = getRealtimeClient();
 
@@ -132,14 +132,14 @@ export function useMultiRealtimeSync(
 
         tables.forEach((table) => {
             const channel = client
-                .channel(`${table}_${session.salonId}`)
+                .channel(`${table}_${session.salon.id}`)
                 .on(
                     'postgres_changes',
                     {
                         event: '*',
                         schema: 'public',
                         table: table,
-                        filter: `salon_id=eq.${session.salonId}`,
+                        filter: `salon_id=eq.${session.salon.id}`,
                     },
                     () => onDataChange()
                 )
@@ -151,5 +151,5 @@ export function useMultiRealtimeSync(
         return () => {
             channels.forEach((channel) => client.removeChannel(channel));
         };
-    }, [tables.join(','), session?.salonId, enabled, onDataChange]);
+    }, [tables.join(','), session?.salon?.id, enabled, onDataChange]);
 }
