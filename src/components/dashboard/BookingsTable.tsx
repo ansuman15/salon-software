@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Customer, Staff, Service } from "@/lib/database";
 import styles from "./BookingsTable.module.css";
 
 interface Appointment {
@@ -12,6 +11,24 @@ interface Appointment {
     status: string;
     time: string;
     customerName: string;
+}
+
+interface Customer {
+    id: string;
+    name: string;
+    phone?: string;
+}
+
+interface Staff {
+    id: string;
+    name: string;
+    role?: string;
+}
+
+interface Service {
+    id: string;
+    name: string;
+    price?: number;
 }
 
 interface BookingsTableProps {
