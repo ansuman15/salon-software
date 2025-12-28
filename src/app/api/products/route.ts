@@ -109,7 +109,9 @@ export async function POST(request: NextRequest) {
         const supabase = getSupabaseAdmin();
 
         // Build insert data - explicitly handle empty strings
-        const insertData = {
+        // NOTE: image_url column needs to be added to Supabase products table
+        // For now, we skip it to allow product creation to work
+        const insertData: Record<string, unknown> = {
             salon_id: session.salonId,
             name: name.trim(),
             category: category && category.trim() ? category.trim() : null,
@@ -118,10 +120,11 @@ export async function POST(request: NextRequest) {
             unit,
             cost_price: cost_price ? Number(cost_price) : null,
             selling_price: selling_price ? Number(selling_price) : null,
-            image_url: image_url && image_url.trim() ? image_url.trim() : null,
+            // TODO: Add image_url column to Supabase products table, then uncomment:
+            // image_url: image_url && image_url.trim() ? image_url.trim() : null,
         };
 
-        console.log('[Products API] Insert data:', { ...insertData, image_url: insertData.image_url ? '[base64 data]' : null });
+        console.log('[Products API] Insert data:', insertData);
 
         const { data, error } = await supabase
             .from('products')
