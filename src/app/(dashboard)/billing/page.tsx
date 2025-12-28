@@ -24,6 +24,20 @@ interface Service {
     isActive?: boolean;
 }
 
+interface Product {
+    id: string;
+    name: string;
+    sellingPrice: number | null;
+    unit: string;
+    category?: string;
+    stock?: number;
+}
+
+interface ProductItem {
+    productId: string;
+    quantity: number;
+}
+
 interface CouponResult {
     valid: boolean;
     message: string;
@@ -66,16 +80,20 @@ export default function BillingPage() {
     const toast = useToast();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [services, setServices] = useState<Service[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
     // Bill state
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
+    const [selectedProducts, setSelectedProducts] = useState<Map<string, number>>(new Map());
     const [discount, setDiscount] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'card'>('cash');
     const [customerSearch, setCustomerSearch] = useState("");
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+    const [productSearch, setProductSearch] = useState("");
+    const [showProductDropdown, setShowProductDropdown] = useState(false);
 
     // Coupon state
     const [couponCode, setCouponCode] = useState("");
@@ -129,6 +147,29 @@ export default function BillingPage() {
                 setServices(activeServices);
             }
 
+            // Fetch products with inventory stock
+            const inventoryRes = await fetch('/api/inventory');
+            if (inventoryRes.ok) {
+                const data = await inventoryRes.json();
+                const inventoryItems = data.data || [];
+                // Transform inventory to products with stock
+                const productsWithStock: Product[] = inventoryItems
+                    .filter((item: { product: { is_active?: boolean } }) => item.product?.is_active !== false)
+                    .map((item: {
+                        product_id: string;
+                        quantity: number;
+                        product: { name: string; selling_price: number | null; unit: string; category?: string }
+                    }) => ({
+                        id: item.product_id,
+                        name: item.product?.name || 'Unknown',
+                        sellingPrice: item.product?.selling_price || 0,
+                        unit: item.product?.unit || 'pc',
+                        category: item.product?.category,
+                        stock: item.quantity || 0,
+                    }));
+                setProducts(productsWithStock);
+            }
+
             // Fetch salon settings using session
             const salonRes = await fetch('/api/salon');
             if (salonRes.ok) {
@@ -168,10 +209,59 @@ export default function BillingPage() {
         }
     };
 
-    const subtotal = selectedServices.reduce((sum, id) => {
+    // Product selection helpers
+    const addProduct = (productId: string) => {
+        setSelectedProducts(prev => {
+            const newMap = new Map(prev);
+            const current = newMap.get(productId) || 0;
+            newMap.set(productId, current + 1);
+            return newMap;
+        });
+        setProductSearch("");
+        setShowProductDropdown(false);
+        if (appliedCoupon) {
+            setAppliedCoupon(null);
+            setCouponCode("");
+        }
+    };
+
+    const updateProductQuantity = (productId: string, quantity: number) => {
+        setSelectedProducts(prev => {
+            const newMap = new Map(prev);
+            if (quantity <= 0) {
+                newMap.delete(productId);
+            } else {
+                newMap.set(productId, quantity);
+            }
+            return newMap;
+        });
+    };
+
+    const removeProduct = (productId: string) => {
+        setSelectedProducts(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(productId);
+            return newMap;
+        });
+    };
+
+    const filteredProducts = products.filter(p =>
+        p.name.toLowerCase().includes(productSearch.toLowerCase()) &&
+        !selectedProducts.has(p.id)
+    );
+
+    // Calculate subtotals
+    const servicesSubtotal = selectedServices.reduce((sum, id) => {
         const service = services.find(s => s.id === id);
         return sum + (service?.price || 0);
     }, 0);
+
+    const productsSubtotal = Array.from(selectedProducts.entries()).reduce((sum, [productId, qty]) => {
+        const product = products.find(p => p.id === productId);
+        return sum + ((product?.sellingPrice || 0) * qty);
+    }, 0);
+
+    const subtotal = servicesSubtotal + productsSubtotal;
 
     // Calculate discount (coupon takes priority over manual)
     const couponDiscount = appliedCoupon?.discount_amount || 0;
@@ -221,27 +311,56 @@ export default function BillingPage() {
     };
 
     const handlePayment = async () => {
-        if (!selectedServices.length) return;
+        if (selectedServices.length === 0 && selectedProducts.size === 0) {
+            toast.error('Please select at least one service or product');
+            return;
+        }
+
+        // Validate stock for products
+        for (const [productId, qty] of Array.from(selectedProducts.entries())) {
+            const product = products.find(p => p.id === productId);
+            if (product && product.stock !== undefined && product.stock < qty) {
+                toast.error(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
+                return;
+            }
+        }
 
         setIsSaving(true);
 
         try {
-            const items = selectedServices.map(id => {
+            // Build service items
+            const serviceItems = selectedServices.map(id => {
                 const service = services.find(s => s.id === id);
                 return {
                     service_id: id,
                     service_name: service?.name || 'Unknown',
                     quantity: 1,
                     unit_price: service?.price || 0,
+                    item_type: 'service',
                 };
             });
 
+            // Build product items
+            const productItems = Array.from(selectedProducts.entries()).map(([productId, qty]) => {
+                const product = products.find(p => p.id === productId);
+                return {
+                    product_id: productId,
+                    service_name: product?.name || 'Unknown', // Using service_name for invoice compatibility
+                    quantity: qty,
+                    unit_price: product?.sellingPrice || 0,
+                    item_type: 'product',
+                };
+            });
+
+            const allItems = [...serviceItems, ...productItems];
+
+            // Complete billing first
             const res = await fetch('/api/billing/complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     customer_id: selectedCustomer?.id || null,
-                    items,
+                    items: allItems,
                     subtotal,
                     discount_percent: appliedCoupon ? null : discount,
                     discount_amount: totalDiscount,
@@ -255,8 +374,30 @@ export default function BillingPage() {
             });
 
             const data = await res.json();
-
             if (!res.ok) throw new Error(data.error);
+
+            // Deduct inventory for products if any
+            if (productItems.length > 0) {
+                const deductRes = await fetch('/api/billing/deduct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        billing_id: data.bill.id,
+                        items: productItems.map(p => ({
+                            product_id: p.product_id,
+                            quantity: p.quantity,
+                            unit_price: p.unit_price,
+                        })),
+                    }),
+                });
+
+                const deductData = await deductRes.json();
+                if (!deductRes.ok) {
+                    console.error('Inventory deduction failed:', deductData);
+                    toast.error(deductData.error || 'Failed to deduct inventory');
+                    // Don't throw - bill is already created
+                }
+            }
 
             // Prepare invoice data
             const invoiceData: BillData = {
@@ -265,8 +406,10 @@ export default function BillingPage() {
                 created_at: data.bill.created_at,
                 salon: salonInfo,
                 customer: selectedCustomer || undefined,
-                items: items.map(i => ({
-                    ...i,
+                items: allItems.map(i => ({
+                    service_name: i.service_name,
+                    quantity: i.quantity,
+                    unit_price: i.unit_price,
                     total_price: i.unit_price * i.quantity,
                 })),
                 subtotal,
@@ -281,9 +424,10 @@ export default function BillingPage() {
 
             setBillData(invoiceData);
             setShowInvoice(true);
+            toast.success('Payment completed!');
         } catch (err) {
             console.error('Payment error:', err);
-            alert('Failed to complete payment. Please try again.');
+            toast.error('Failed to complete payment. Please try again.');
         } finally {
             setIsSaving(false);
         }
@@ -455,6 +599,7 @@ export default function BillingPage() {
 
                     {/* Selected Services */}
                     <div className={styles.billItems}>
+                        <div className={styles.billSectionLabel}>Services</div>
                         {selectedServices.length === 0 ? (
                             <p className={styles.noItems}>No services selected</p>
                         ) : (
@@ -469,6 +614,67 @@ export default function BillingPage() {
                                 );
                             })
                         )}
+                    </div>
+
+                    {/* Product Selection */}
+                    <div className={styles.productSection}>
+                        <div className={styles.billSectionLabel}>Products</div>
+                        <div className={styles.productSearchWrapper}>
+                            <input
+                                type="text"
+                                className={styles.productSearch}
+                                placeholder="Search and add product..."
+                                value={productSearch}
+                                onChange={e => {
+                                    setProductSearch(e.target.value);
+                                    setShowProductDropdown(true);
+                                }}
+                                onFocus={() => setShowProductDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowProductDropdown(false), 200)}
+                            />
+                            {showProductDropdown && productSearch && filteredProducts.length > 0 && (
+                                <div className={styles.productDropdown}>
+                                    {filteredProducts.slice(0, 5).map(p => (
+                                        <button
+                                            key={p.id}
+                                            className={styles.productOption}
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                addProduct(p.id);
+                                            }}
+                                        >
+                                            <div className={styles.productOptionInfo}>
+                                                <span className={styles.productName}>{p.name}</span>
+                                                <span className={styles.productMeta}>₹{p.sellingPrice} · {p.stock} in stock</span>
+                                            </div>
+                                            <span className={styles.addProductIcon}>+</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Selected Products with quantity */}
+                        {Array.from(selectedProducts.entries()).map(([productId, qty]) => {
+                            const product = products.find(p => p.id === productId);
+                            if (!product) return null;
+                            const isOverStock = product.stock !== undefined && qty > product.stock;
+                            return (
+                                <div key={productId} className={`${styles.productItem} ${isOverStock ? styles.overStock : ''}`}>
+                                    <div className={styles.productItemInfo}>
+                                        <span className={styles.productItemName}>{product.name}</span>
+                                        <span className={styles.productItemPrice}>₹{(product.sellingPrice || 0) * qty}</span>
+                                    </div>
+                                    <div className={styles.productItemControls}>
+                                        <button onClick={() => updateProductQuantity(productId, qty - 1)}>−</button>
+                                        <span>{qty}</span>
+                                        <button onClick={() => updateProductQuantity(productId, qty + 1)}>+</button>
+                                        <button className={styles.removeProduct} onClick={() => removeProduct(productId)}>✕</button>
+                                    </div>
+                                    {isOverStock && <span className={styles.stockWarning}>Only {product.stock} available</span>}
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* Coupon Code */}
