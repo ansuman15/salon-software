@@ -44,7 +44,7 @@ export async function GET() {
             .from('bills')
             .select('final_amount, created_at')
             .eq('salon_id', salonId)
-            .eq('status', 'paid')
+            .eq('payment_status', 'paid')
             .gte('created_at', monthStart)
             .order('created_at', { ascending: false });
 

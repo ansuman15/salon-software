@@ -152,6 +152,7 @@ export interface DbProduct {
     unit: string;
     cost_price: number | null;
     selling_price: number | null;
+    image_url: string | null;
     is_active: boolean;
     created_at: string;
     updated_at: string;

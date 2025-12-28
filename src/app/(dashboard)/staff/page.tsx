@@ -16,6 +16,7 @@ interface Staff {
     imageUrl?: string;
     isActive: boolean;
     serviceIds: string[];
+    createdAt: string;
 }
 
 interface Service {
@@ -317,7 +318,8 @@ export default function StaffPage() {
         name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
     const getAppointmentCount = (staffId: string) => {
-        return db.appointments.getAll().filter(a => a.staffId === staffId).length;
+        // TODO: Fetch appointment count from API when needed
+        return 0;
     };
 
     if (isLoading) {

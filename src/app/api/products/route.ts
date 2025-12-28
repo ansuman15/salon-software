@@ -71,10 +71,25 @@ export async function POST(request: NextRequest) {
     try {
         const session = await getSession();
         if (!session?.salonId) {
+            console.error('[Products API] No session found');
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        const body = await request.json();
+        let body;
+        try {
+            body = await request.json();
+        } catch (parseError) {
+            console.error('[Products API] JSON parse error:', parseError);
+            return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+        }
+
+        console.log('[Products API] Creating product:', {
+            name: body.name,
+            type: body.type,
+            unit: body.unit,
+            salonId: session.salonId
+        });
+
         const { name, category, brand, type, unit, cost_price, selling_price, image_url } = body;
 
         if (!name || !type || !unit) {
@@ -92,29 +107,47 @@ export async function POST(request: NextRequest) {
         }
 
         const supabase = getSupabaseAdmin();
+
+        // Build insert data - explicitly handle empty strings
+        const insertData = {
+            salon_id: session.salonId,
+            name: name.trim(),
+            category: category && category.trim() ? category.trim() : null,
+            brand: brand && brand.trim() ? brand.trim() : null,
+            type,
+            unit,
+            cost_price: cost_price ? Number(cost_price) : null,
+            selling_price: selling_price ? Number(selling_price) : null,
+            image_url: image_url && image_url.trim() ? image_url.trim() : null,
+        };
+
+        console.log('[Products API] Insert data:', { ...insertData, image_url: insertData.image_url ? '[base64 data]' : null });
+
         const { data, error } = await supabase
             .from('products')
-            .insert({
-                salon_id: session.salonId,
-                name,
-                category: category || null,
-                brand: brand || null,
-                type,
-                unit,
-                cost_price: cost_price || null,
-                selling_price: selling_price || null,
-                image_url: image_url || null,
-            })
+            .insert(insertData)
             .select()
             .single();
 
         if (error) {
-            console.error('Products Supabase INSERT error:', error);
+            console.error('[Products API] Supabase INSERT error:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
             return NextResponse.json(
-                { error: error.message || 'Database error', details: error.details, hint: error.hint },
+                {
+                    error: error.message || 'Database error',
+                    details: error.details,
+                    hint: error.hint,
+                    code: error.code
+                },
                 { status: 500 }
             );
         }
+
+        console.log('[Products API] Product created successfully:', data.id);
 
         return NextResponse.json({
             success: true,
@@ -122,8 +155,8 @@ export async function POST(request: NextRequest) {
             message: 'Product created successfully'
         });
     } catch (error) {
-        console.error('Products POST error:', error);
+        console.error('[Products API] Unexpected error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Failed to create product';
-        return NextResponse.json({ error: errorMessage }, { status: 500 });
+        return NextResponse.json({ error: errorMessage, type: 'unexpected' }, { status: 500 });
     }
 }

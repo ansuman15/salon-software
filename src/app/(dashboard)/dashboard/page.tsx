@@ -90,35 +90,43 @@ export default function DashboardPage() {
                 fetch('/api/reports/revenue').catch(() => null), // Revenue API might not exist
             ]);
 
+            // Use local variables to avoid stale closure issues
+            let parsedCustomers: Customer[] = [];
+            let parsedServices: Service[] = [];
+            let parsedStaff: Staff[] = [];
+            let parsedAppointments: Appointment[] = [];
+
             // Parse customers
             if (customersRes.ok) {
                 const data = await customersRes.json();
-                setCustomers(data.customers || []);
+                parsedCustomers = data.customers || [];
+                setCustomers(parsedCustomers);
             }
 
             // Parse services
             if (servicesRes.ok) {
                 const data = await servicesRes.json();
-                const allServices = data.services || [];
-                setServices(allServices);
+                parsedServices = data.services || [];
+                setServices(parsedServices);
             }
 
             // Parse staff
             if (staffRes.ok) {
                 const data = await staffRes.json();
-                setStaff(data.staff || []);
+                parsedStaff = data.staff || [];
+                setStaff(parsedStaff);
             }
 
             // Parse appointments
             let todayAppointments: Appointment[] = [];
             if (appointmentsRes.ok) {
                 const data = await appointmentsRes.json();
-                const allAppointments = data.appointments || [];
-                setAppointments(allAppointments);
+                parsedAppointments = data.appointments || [];
+                setAppointments(parsedAppointments);
 
                 // Filter today's appointments
                 const today = new Date().toISOString().split('T')[0];
-                todayAppointments = allAppointments.filter((a: Appointment) =>
+                todayAppointments = parsedAppointments.filter((a: Appointment) =>
                     a.appointmentDate === today && a.status !== 'cancelled'
                 );
             }
@@ -130,11 +138,11 @@ export default function DashboardPage() {
                 revenueData = data;
             }
 
-            // Update stats
+            // Update stats using local variables (no stale closure)
             setStats({
-                totalClients: customers.length,
-                activeServices: services.filter(s => s.isActive !== false).length,
-                staffMembers: staff.filter(s => s.isActive !== false).length,
+                totalClients: parsedCustomers.length,
+                activeServices: parsedServices.filter(s => s.isActive !== false).length,
+                staffMembers: parsedStaff.filter(s => s.isActive !== false).length,
                 todayAppointments: todayAppointments.length,
                 todayRevenue: revenueData.today || 0,
                 weekRevenue: revenueData.week || 0,

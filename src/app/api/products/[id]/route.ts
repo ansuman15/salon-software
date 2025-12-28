@@ -113,7 +113,7 @@ export async function PATCH(
 
 /**
  * DELETE /api/products/[id]
- * Soft delete (deactivate) a product
+ * Permanently delete a product
  */
 export async function DELETE(
     request: NextRequest,
@@ -127,21 +127,21 @@ export async function DELETE(
 
         const supabase = getSupabaseAdmin();
 
-        // Soft delete - just deactivate
-        const { data, error } = await supabase
+        // Permanent delete
+        const { error } = await supabase
             .from('products')
-            .update({ is_active: false })
+            .delete()
             .eq('id', params.id)
-            .eq('salon_id', session.salonId)
-            .select()
-            .single();
+            .eq('salon_id', session.salonId);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Product DELETE error:', error);
+            return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
+        }
 
         return NextResponse.json({
             success: true,
-            data,
-            message: 'Product deactivated'
+            message: 'Product deleted permanently'
         });
     } catch (error) {
         console.error('Product DELETE error:', error);

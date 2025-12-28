@@ -202,7 +202,7 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-// DELETE - Soft delete (deactivate) a staff member
+// DELETE - Permanently delete a staff member
 export async function DELETE(request: NextRequest) {
     try {
         const session = await verifySession();
@@ -219,10 +219,10 @@ export async function DELETE(request: NextRequest) {
 
         const supabase = getSupabaseAdmin();
 
-        // Soft delete by setting is_active to false
+        // Permanent delete
         const { error } = await supabase
             .from('staff')
-            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .delete()
             .eq('id', id)
             .eq('salon_id', session.salonId); // Security: only delete own staff
 
