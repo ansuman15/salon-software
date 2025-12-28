@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { verifySession, unauthorizedResponse, serverErrorResponse, successResponse } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
-
-interface SessionData {
-    salonId: string;
-}
-
-async function getSession(): Promise<SessionData | null> {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('salonx_session');
-    if (!sessionCookie) return null;
-    try {
-        return JSON.parse(sessionCookie.value);
-    } catch {
-        return null;
-    }
-}
 
 /**
  * GET /api/products/[id]
@@ -28,9 +13,9 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getSession();
-        if (!session?.salonId) {
-            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const session = await verifySession();
+        if (!session) {
+            return unauthorizedResponse();
         }
 
         const supabase = getSupabaseAdmin();
@@ -46,10 +31,10 @@ export async function GET(
             return NextResponse.json({ error: 'Product not found' }, { status: 404 });
         }
 
-        return NextResponse.json({ data });
+        return successResponse({ data });
     } catch (error) {
         console.error('Product GET error:', error);
-        return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });
+        return serverErrorResponse('Failed to fetch product');
     }
 }
 
@@ -62,9 +47,9 @@ export async function PATCH(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getSession();
-        if (!session?.salonId) {
-            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const session = await verifySession();
+        if (!session) {
+            return unauthorizedResponse();
         }
 
         const body = await request.json();
@@ -98,16 +83,15 @@ export async function PATCH(
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Product PATCH error:', error);
+            return serverErrorResponse('Failed to update product');
+        }
 
-        return NextResponse.json({
-            success: true,
-            data,
-            message: 'Product updated successfully'
-        });
+        return successResponse({ data, message: 'Product updated successfully' });
     } catch (error) {
         console.error('Product PATCH error:', error);
-        return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
+        return serverErrorResponse('Failed to update product');
     }
 }
 
@@ -120,14 +104,20 @@ export async function DELETE(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getSession();
-        if (!session?.salonId) {
-            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const session = await verifySession();
+        if (!session) {
+            return unauthorizedResponse();
         }
 
         const supabase = getSupabaseAdmin();
 
-        // Permanent delete
+        // Delete inventory records first (foreign key constraint)
+        await supabase
+            .from('inventory')
+            .delete()
+            .eq('product_id', params.id);
+
+        // Permanent delete product
         const { error } = await supabase
             .from('products')
             .delete()
@@ -136,15 +126,13 @@ export async function DELETE(
 
         if (error) {
             console.error('Product DELETE error:', error);
-            return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
+            return serverErrorResponse('Failed to delete product');
         }
 
-        return NextResponse.json({
-            success: true,
-            message: 'Product deleted permanently'
-        });
+        return successResponse({ deleted: true, message: 'Product deleted permanently' });
     } catch (error) {
         console.error('Product DELETE error:', error);
-        return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
+        return serverErrorResponse('Failed to delete product');
     }
 }
+

@@ -62,9 +62,11 @@ export default function ProductsPage() {
     const [showSupplierModal, setShowSupplierModal] = useState(false);
     const [showAdjustModal, setShowAdjustModal] = useState(false);
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
     const [adjustingItem, setAdjustingItem] = useState<InventoryItem | null>(null);
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
     // Form states
     const [productForm, setProductForm] = useState({
@@ -243,6 +245,35 @@ export default function ProductsPage() {
         setShowProductModal(true);
     };
 
+    const openDeleteConfirm = (product: Product) => {
+        setProductToDelete(product);
+        setShowDeleteConfirm(true);
+    };
+
+    const handleDeleteProduct = async () => {
+        if (!productToDelete) return;
+        setIsSaving(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/products/${productToDelete.id}`, {
+                method: 'DELETE',
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to delete product');
+            }
+            setSuccess('Product deleted permanently');
+            setShowDeleteConfirm(false);
+            setProductToDelete(null);
+            loadData();
+        } catch (err: unknown) {
+            console.error('Product delete error:', err);
+            setError(err instanceof Error ? err.message : 'Failed to delete product');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     // Supplier CRUD
     const handleSaveSupplier = async () => {
         setIsSaving(true);
@@ -416,6 +447,7 @@ export default function ProductsPage() {
                                             </span></td>
                                             <td>
                                                 <button className={styles.iconBtn} onClick={() => openEditProduct(p)}>✏️</button>
+                                                <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => openDeleteConfirm(p)}>🗑️</button>
                                             </td>
                                         </tr>
                                     ))}
@@ -749,6 +781,25 @@ export default function ProductsPage() {
                                 <button className={styles.secondaryBtn} onClick={() => setShowPurchaseModal(false)}>Cancel</button>
                                 <button className={styles.primaryBtn} onClick={handlePurchase} disabled={isSaving || !purchaseForm.product_id || !purchaseForm.quantity}>
                                     {isSaving ? 'Adding...' : 'Add Stock'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {showDeleteConfirm && productToDelete && (
+                    <div className={styles.modalOverlay} onClick={() => setShowDeleteConfirm(false)}>
+                        <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                            <h2>Delete Product</h2>
+                            <p className={styles.deleteWarning}>
+                                ⚠️ Are you sure you want to permanently delete <strong>{productToDelete.name}</strong>?
+                                This action cannot be undone and will also remove all inventory records for this product.
+                            </p>
+                            <div className={styles.modalActions}>
+                                <button className={styles.secondaryBtn} onClick={() => { setShowDeleteConfirm(false); setProductToDelete(null); }}>Cancel</button>
+                                <button className={styles.dangerBtn} onClick={handleDeleteProduct} disabled={isSaving}>
+                                    {isSaving ? 'Deleting...' : 'Delete Permanently'}
                                 </button>
                             </div>
                         </div>
