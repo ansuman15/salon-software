@@ -578,6 +578,80 @@
 }
 
 /* ===========================================
+   EXPORT MODAL
+   =========================================== */
+.exportTypeSelector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.exportTypeBtn {
+    flex: 1;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.exportTypeBtn:hover {
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.exportTypeBtn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.exportInputs {
+    padding: 16px 0;
+}
+
+.exportInfo {
+    text-align: center;
+    color: var(--text-primary);
+}
+
+.dateRangeInputs {
+    display: flex;
+    gap: 16px;
+}
+
+.dateRangeInputs label,
+.monthInput {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.dateRangeInputs input,
+.monthInput input {
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.dateRangeInputs input:focus,
+.monthInput input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* ===========================================
    RESPONSIVE
    =========================================== */
 @media (max-width: 1024px) {

@@ -56,6 +56,14 @@ export default function AttendancePage() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [showPastDateConfirm, setShowPastDateConfirm] = useState(false);
 
+    // Export state
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportType, setExportType] = useState<'date' | 'range' | 'month'>('month');
+    const [exportFrom, setExportFrom] = useState('');
+    const [exportTo, setExportTo] = useState('');
+    const [exportMonth, setExportMonth] = useState('');
+    const [isExporting, setIsExporting] = useState(false);
+
     const abortControllerRef = useRef<AbortController | null>(null);
     const saveAttemptRef = useRef(0);
 
@@ -327,6 +335,49 @@ export default function AttendancePage() {
         }
     };
 
+    // Export Excel handler
+    const handleExport = async () => {
+        setIsExporting(true);
+        try {
+            let url = '/api/attendance/export?';
+
+            if (exportType === 'date') {
+                url += `date=${getDateStr(selectedDate)}`;
+            } else if (exportType === 'range' && exportFrom && exportTo) {
+                url += `from=${exportFrom}&to=${exportTo}`;
+            } else if (exportType === 'month' && exportMonth) {
+                url += `month=${exportMonth}`;
+            } else {
+                // Default to current month
+                const now = new Date();
+                url += `month=${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('Export failed');
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `Attendance_Export.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+
+            setShowExportModal(false);
+            setSuccessMessage('Export downloaded successfully!');
+        } catch (err) {
+            console.error('Export error:', err);
+            setError('Failed to export attendance');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className={styles.loading}>
@@ -364,6 +415,17 @@ export default function AttendancePage() {
                         disabled={isToday || isSaving}
                     >
                         Next →
+                    </button>
+
+                    <button
+                        className={styles.navBtn}
+                        onClick={() => {
+                            setExportMonth(`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`);
+                            setShowExportModal(true);
+                        }}
+                        disabled={isSaving}
+                    >
+                        📥 Export
                     </button>
                 </div>
 
@@ -576,6 +638,94 @@ export default function AttendancePage() {
                             </button>
                             <button className={styles.confirmBtn} onClick={() => handleSave(true)}>
                                 Yes, Update
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Export Modal */}
+            {showExportModal && (
+                <div className={styles.modalOverlay} onClick={() => setShowExportModal(false)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <h3>📥 Export Attendance</h3>
+
+                        <div className={styles.exportTypeSelector}>
+                            <button
+                                className={`${styles.exportTypeBtn} ${exportType === 'date' ? styles.active : ''}`}
+                                onClick={() => setExportType('date')}
+                            >
+                                Single Date
+                            </button>
+                            <button
+                                className={`${styles.exportTypeBtn} ${exportType === 'range' ? styles.active : ''}`}
+                                onClick={() => setExportType('range')}
+                            >
+                                Date Range
+                            </button>
+                            <button
+                                className={`${styles.exportTypeBtn} ${exportType === 'month' ? styles.active : ''}`}
+                                onClick={() => setExportType('month')}
+                            >
+                                Month
+                            </button>
+                        </div>
+
+                        <div className={styles.exportInputs}>
+                            {exportType === 'date' && (
+                                <p className={styles.exportInfo}>
+                                    Exporting: <strong>{formatDate(selectedDate)}</strong>
+                                </p>
+                            )}
+
+                            {exportType === 'range' && (
+                                <div className={styles.dateRangeInputs}>
+                                    <label>
+                                        From:
+                                        <input
+                                            type="date"
+                                            value={exportFrom}
+                                            onChange={(e) => setExportFrom(e.target.value)}
+                                        />
+                                    </label>
+                                    <label>
+                                        To:
+                                        <input
+                                            type="date"
+                                            value={exportTo}
+                                            max={new Date().toISOString().split('T')[0]}
+                                            onChange={(e) => setExportTo(e.target.value)}
+                                        />
+                                    </label>
+                                </div>
+                            )}
+
+                            {exportType === 'month' && (
+                                <label className={styles.monthInput}>
+                                    Month:
+                                    <input
+                                        type="month"
+                                        value={exportMonth}
+                                        onChange={(e) => setExportMonth(e.target.value)}
+                                    />
+                                </label>
+                            )}
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.cancelBtn}
+                                onClick={() => setShowExportModal(false)}
+                                disabled={isExporting}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className={styles.confirmBtn}
+                                onClick={handleExport}
+                                disabled={isExporting || (exportType === 'range' && (!exportFrom || !exportTo))}
+                            >
+                                {isExporting ? 'Exporting...' : 'Download Excel'}
                             </button>
                         </div>
                     </div>
