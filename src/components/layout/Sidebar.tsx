@@ -148,15 +148,20 @@ export default function Sidebar() {
         name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
 
     const salonName = session?.salon?.name || 'SalonX';
+    const logoUrl = session?.salon?.logo_url;
 
     return (
         <>
             <aside className={styles.sidebar}>
                 {/* Logo */}
                 <div className={styles.logo}>
-                    <div className={styles.logoPlaceholder}>
-                        {salonName ? getInitials(salonName) : 'SX'}
-                    </div>
+                    {logoUrl ? (
+                        <img src={logoUrl} alt={salonName} className={styles.logoImage} />
+                    ) : (
+                        <div className={styles.logoPlaceholder}>
+                            {salonName ? getInitials(salonName) : 'SX'}
+                        </div>
+                    )}
                     <span className={styles.logoText}>{salonName}</span>
                 </div>
 
