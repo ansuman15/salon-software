@@ -1,0 +1,171 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.header h3 {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+}
+
+.closeBtn {
+    width: 32px;
+    height: 32px;
+    background: var(--bg-secondary);
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.closeBtn:hover {
+    background: var(--bg-tertiary);
+}
+
+.content {
+    flex: 1;
+    overflow: auto;
+    padding: var(--space-5);
+}
+
+.uploadArea {
+    border: 2px dashed var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.uploadArea:hover {
+    border-color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+
+.fileInput {
+    display: none;
+}
+
+.uploadLabel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    cursor: pointer;
+}
+
+.uploadIcon {
+    font-size: 48px;
+}
+
+.uploadLabel span {
+    color: var(--text-primary);
+    font-weight: var(--font-medium);
+}
+
+.uploadHint {
+    font-size: var(--text-sm);
+    color: var(--text-muted) !important;
+}
+
+.cropArea {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+}
+
+.reactCrop {
+    max-height: 400px;
+}
+
+.cropImage {
+    max-width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+}
+
+.actions {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-top: 1px solid var(--border-light);
+    justify-content: flex-end;
+}
+
+.resetBtn {
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    margin-right: auto;
+}
+
+.resetBtn:hover {
+    background: var(--bg-tertiary);
+}
+
+.cancelBtn {
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-secondary);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    cursor: pointer;
+}
+
+.cancelBtn:hover {
+    background: var(--bg-tertiary);
+}
+
+.cropBtn {
+    padding: var(--space-2) var(--space-4);
+    background: var(--text-primary);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    cursor: pointer;
+}
+
+.cropBtn:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.cropBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

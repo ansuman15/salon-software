@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "@/lib/SessionContext";
 import Header from "@/components/layout/Header";
+import { ImageCropper } from "@/components/ImageCropper";
+import { useToast } from "@/components/ui/Toast";
 import styles from "./page.module.css";
 
 export default function ProfilePage() {
     const { session, loading } = useSession();
+    const toast = useToast();
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [showLogoCropper, setShowLogoCropper] = useState(false);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -22,6 +28,12 @@ export default function ProfilePage() {
     // Initialize form with session data when available
     const salonName = session?.salon?.name || 'Your Salon';
     const salonEmail = session?.salon?.email || '';
+
+    useEffect(() => {
+        if (session?.salon?.logo_url) {
+            setLogoUrl(session.salon.logo_url);
+        }
+    }, [session]);
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -37,6 +49,58 @@ export default function ProfilePage() {
             setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleLogoUpload = async (croppedBlob: Blob) => {
+        setIsUploadingLogo(true);
+        setShowLogoCropper(false);
+
+        try {
+            const formData = new FormData();
+            formData.append('logo', croppedBlob, 'logo.jpg');
+
+            const res = await fetch('/api/salon/logo', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Upload failed');
+            }
+
+            setLogoUrl(data.logo_url);
+            toast.success('Logo uploaded successfully!');
+        } catch (error) {
+            console.error('Logo upload error:', error);
+            toast.error('Failed to upload logo');
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    };
+
+    const handleRemoveLogo = async () => {
+        if (!confirm('Are you sure you want to remove the logo?')) return;
+
+        setIsUploadingLogo(true);
+        try {
+            const res = await fetch('/api/salon/logo', {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                throw new Error('Delete failed');
+            }
+
+            setLogoUrl(null);
+            toast.success('Logo removed');
+        } catch (error) {
+            console.error('Logo delete error:', error);
+            toast.error('Failed to remove logo');
+        } finally {
+            setIsUploadingLogo(false);
         }
     };
 
@@ -65,6 +129,46 @@ export default function ProfilePage() {
                 <div className={styles.content}>
                     {/* Profile Card */}
                     <div className={styles.profileCard}>
+                        {/* Logo Section */}
+                        <div className={styles.logoSection}>
+                            {logoUrl ? (
+                                <div className={styles.logoPreview}>
+                                    <img src={logoUrl} alt="Salon Logo" className={styles.logoImage} />
+                                    <div className={styles.logoActions}>
+                                        <button
+                                            className={styles.changeLogoBtn}
+                                            onClick={() => setShowLogoCropper(true)}
+                                            disabled={isUploadingLogo}
+                                        >
+                                            Change
+                                        </button>
+                                        <button
+                                            className={styles.removeLogoBtn}
+                                            onClick={handleRemoveLogo}
+                                            disabled={isUploadingLogo}
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    className={styles.uploadLogoBtn}
+                                    onClick={() => setShowLogoCropper(true)}
+                                    disabled={isUploadingLogo}
+                                >
+                                    {isUploadingLogo ? (
+                                        <span className={styles.uploadingText}>Uploading...</span>
+                                    ) : (
+                                        <>
+                                            <span className={styles.uploadIcon}>📷</span>
+                                            <span>Upload Logo</span>
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+
                         <div className={styles.avatar}>
                             {getInitials(salonName)}
                         </div>
@@ -174,6 +278,16 @@ export default function ProfilePage() {
                     </div>
                 </div>
             </div>
+
+            {/* Logo Cropper Modal */}
+            {showLogoCropper && (
+                <ImageCropper
+                    onImageCropped={handleLogoUpload}
+                    onCancel={() => setShowLogoCropper(false)}
+                    aspectRatio={1}
+                    title="Upload Salon Logo"
+                />
+            )}
         </>
     );
 }

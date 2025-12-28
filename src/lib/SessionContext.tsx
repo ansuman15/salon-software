@@ -7,6 +7,7 @@ export interface SessionSalon {
     id: string;
     name: string;
     email: string;
+    logo_url?: string;
 }
 
 export interface SessionData {
