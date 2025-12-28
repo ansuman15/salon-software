@@ -30,7 +30,6 @@ export default function CustomersPage() {
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-    const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
     useEffect(() => {
         loadCustomers();
@@ -328,12 +327,9 @@ export default function CustomersPage() {
     const handleBulkDeleteClick = () => {
         if (selectedIds.size === 0) return;
         setShowBulkDeleteConfirm(true);
-        setDeleteConfirmText('');
     };
 
     const handleConfirmBulkDelete = async () => {
-        if (deleteConfirmText !== 'DELETE') return;
-
         setIsSaving(true);
         let successCount = 0;
         let failCount = 0;
@@ -375,7 +371,6 @@ export default function CustomersPage() {
         } finally {
             setIsSaving(false);
             setShowBulkDeleteConfirm(false);
-            setDeleteConfirmText('');
         }
     };
 
@@ -666,31 +661,18 @@ export default function CustomersPage() {
 
             {/* Bulk Delete Confirmation Modal */}
             {showBulkDeleteConfirm && (
-                <div className={styles.modalOverlay} onClick={() => setShowBulkDeleteConfirm(false)}>
+                <div className={styles.modalOverlay} onClick={() => !isSaving && setShowBulkDeleteConfirm(false)}>
                     <div className={styles.bulkDeleteModal} onClick={e => e.stopPropagation()}>
-                        <h3>⚠️ Delete {selectedIds.size} Customers?</h3>
-                        <p>This action <strong>cannot be undone</strong>. All selected customer records will be permanently deleted.</p>
-
-                        <div className={styles.confirmStep}>
-                            <p>Type <strong>DELETE</strong> to confirm:</p>
-                            <input
-                                type="text"
-                                className={`${styles.confirmInput} ${deleteConfirmText === 'DELETE' ? styles.valid : ''}`}
-                                value={deleteConfirmText}
-                                onChange={(e) => setDeleteConfirmText(e.target.value.toUpperCase())}
-                                placeholder="DELETE"
-                                autoFocus
-                            />
-                        </div>
-
+                        <h3>⚠️ Delete {selectedIds.size} Customer{selectedIds.size > 1 ? 's' : ''}?</h3>
+                        <p>This action <strong>cannot be undone</strong>. All selected records will be permanently deleted.</p>
                         <div className={styles.modalActions}>
-                            <button onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
+                            <button onClick={() => setShowBulkDeleteConfirm(false)} disabled={isSaving}>Cancel</button>
                             <button
                                 className={styles.dangerBtn}
                                 onClick={handleConfirmBulkDelete}
-                                disabled={deleteConfirmText !== 'DELETE' || isSaving}
+                                disabled={isSaving}
                             >
-                                {isSaving ? 'Deleting...' : 'Delete All'}
+                                {isSaving ? 'Deleting...' : 'Delete Permanently'}
                             </button>
                         </div>
                     </div>
