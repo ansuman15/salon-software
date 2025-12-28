@@ -26,6 +26,12 @@ export default function CustomersPage() {
     const [newCustomer, setNewCustomer] = useState({ name: "", phone: "", email: "", notes: "" });
     const [editCustomer, setEditCustomer] = useState({ name: "", phone: "", email: "", notes: "", tags: [] as string[] });
 
+    // Selection mode state
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
     useEffect(() => {
         loadCustomers();
     }, []);
@@ -294,6 +300,85 @@ export default function CustomersPage() {
         }));
     };
 
+    // Selection mode functions
+    const toggleSelectionMode = () => {
+        setSelectionMode(prev => !prev);
+        setSelectedIds(new Set());
+    };
+
+    const toggleSelect = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const selectAll = () => {
+        const allIds = filteredCustomers.map(c => c.id);
+        setSelectedIds(new Set(allIds));
+    };
+
+    const clearSelection = () => {
+        setSelectedIds(new Set());
+    };
+
+    const handleBulkDeleteClick = () => {
+        if (selectedIds.size === 0) return;
+        setShowBulkDeleteConfirm(true);
+        setDeleteConfirmText('');
+    };
+
+    const handleConfirmBulkDelete = async () => {
+        if (deleteConfirmText !== 'DELETE') return;
+
+        setIsSaving(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        try {
+            // Delete each selected customer
+            const idsToDelete = Array.from(selectedIds);
+            for (let i = 0; i < idsToDelete.length; i++) {
+                const id = idsToDelete[i];
+                try {
+                    const res = await fetch(`/api/customers/${id}`, {
+                        method: 'DELETE',
+                    });
+                    if (res.ok) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch {
+                    failCount++;
+                }
+            }
+
+            if (successCount > 0) {
+                toast.success(`Deleted ${successCount} customer${successCount > 1 ? 's' : ''} successfully`);
+            }
+            if (failCount > 0) {
+                toast.error(`Failed to delete ${failCount} customer${failCount > 1 ? 's' : ''}`);
+            }
+
+            // Refresh and reset
+            await loadCustomers();
+            setSelectedCustomer(null);
+            setSelectionMode(false);
+            setSelectedIds(new Set());
+        } catch (error) {
+            console.error('Bulk delete error:', error);
+            toast.error('Failed to delete customers');
+        } finally {
+            setIsSaving(false);
+            setShowBulkDeleteConfirm(false);
+            setDeleteConfirmText('');
+        }
+    };
+
     if (isLoading) {
         return <div className={styles.loading}><div className={styles.spinner}></div></div>;
     }
@@ -313,9 +398,17 @@ export default function CustomersPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                        <button className={styles.addBtn} onClick={() => setShowAddModal(true)}>
-                            + Add
-                        </button>
+                        <div className={styles.headerActions}>
+                            <button className={styles.addBtn} onClick={() => setShowAddModal(true)}>
+                                + Add
+                            </button>
+                            <button
+                                className={`${styles.selectBtn} ${selectionMode ? styles.active : ''}`}
+                                onClick={toggleSelectionMode}
+                            >
+                                {selectionMode ? '✕ Cancel' : '☑ Select'}
+                            </button>
+                        </div>
                     </div>
 
                     <div className={styles.bulkActions}>
@@ -335,8 +428,14 @@ export default function CustomersPage() {
                                 <div
                                     key={customer.id}
                                     className={`${styles.customerCard} ${selectedCustomer?.id === customer.id ? styles.selected : ''}`}
-                                    onClick={() => setSelectedCustomer(customer)}
+                                    onClick={() => !selectionMode && setSelectedCustomer(customer)}
                                 >
+                                    {selectionMode && (
+                                        <div
+                                            className={`${styles.checkbox} ${selectedIds.has(customer.id) ? styles.checked : ''}`}
+                                            onClick={(e) => toggleSelect(customer.id, e)}
+                                        />
+                                    )}
                                     <div className={styles.avatar}>{getInitials(customer.name)}</div>
                                     <div className={styles.customerInfo}>
                                         <span className={styles.customerName}>{customer.name}</span>
@@ -351,6 +450,32 @@ export default function CustomersPage() {
                             ))
                         )}
                     </div>
+
+                    {/* Selection Bar */}
+                    {selectionMode && (
+                        <div className={styles.selectionBar}>
+                            <span className={styles.selectionInfo}>
+                                {selectedIds.size} selected
+                            </span>
+                            <div className={styles.selectionActions}>
+                                <button className={styles.selectAllBtn} onClick={selectAll}>
+                                    Select All ({filteredCustomers.length})
+                                </button>
+                                {selectedIds.size > 0 && (
+                                    <button className={styles.cancelSelectBtn} onClick={clearSelection}>
+                                        Clear
+                                    </button>
+                                )}
+                                <button
+                                    className={styles.deleteSelectedBtn}
+                                    onClick={handleBulkDeleteClick}
+                                    disabled={selectedIds.size === 0}
+                                >
+                                    🗑️ Delete ({selectedIds.size})
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Customer Detail */}
@@ -537,6 +662,39 @@ export default function CustomersPage() {
                     onClose={() => setShowBulkImport(false)}
                     onImport={handleBulkImport}
                 />
+            )}
+
+            {/* Bulk Delete Confirmation Modal */}
+            {showBulkDeleteConfirm && (
+                <div className={styles.modalOverlay} onClick={() => setShowBulkDeleteConfirm(false)}>
+                    <div className={styles.bulkDeleteModal} onClick={e => e.stopPropagation()}>
+                        <h3>⚠️ Delete {selectedIds.size} Customers?</h3>
+                        <p>This action <strong>cannot be undone</strong>. All selected customer records will be permanently deleted.</p>
+
+                        <div className={styles.confirmStep}>
+                            <p>Type <strong>DELETE</strong> to confirm:</p>
+                            <input
+                                type="text"
+                                className={`${styles.confirmInput} ${deleteConfirmText === 'DELETE' ? styles.valid : ''}`}
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value.toUpperCase())}
+                                placeholder="DELETE"
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
+                            <button
+                                className={styles.dangerBtn}
+                                onClick={handleConfirmBulkDelete}
+                                disabled={deleteConfirmText !== 'DELETE' || isSaving}
+                            >
+                                {isSaving ? 'Deleting...' : 'Delete All'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     );
