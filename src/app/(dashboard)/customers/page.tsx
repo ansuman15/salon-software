@@ -337,18 +337,28 @@ export default function CustomersPage() {
         try {
             // Delete each selected customer
             const idsToDelete = Array.from(selectedIds);
+            console.log('[Bulk Delete] Starting delete for', idsToDelete.length, 'customers');
+
             for (let i = 0; i < idsToDelete.length; i++) {
                 const id = idsToDelete[i];
                 try {
+                    console.log('[Bulk Delete] Deleting customer:', id);
                     const res = await fetch(`/api/customers/${id}`, {
                         method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
                     });
+
                     if (res.ok) {
                         successCount++;
+                        console.log('[Bulk Delete] Success for:', id);
                     } else {
+                        const errorData = await res.json().catch(() => ({}));
+                        console.error('[Bulk Delete] Failed for:', id, 'Error:', errorData);
+                        toast.error(errorData.error || 'Delete failed');
                         failCount++;
                     }
-                } catch {
+                } catch (err) {
+                    console.error('[Bulk Delete] Network error for:', id, err);
                     failCount++;
                 }
             }
