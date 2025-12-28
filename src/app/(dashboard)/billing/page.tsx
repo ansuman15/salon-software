@@ -64,8 +64,13 @@ interface BillData {
         quantity: number;
         unit_price: number;
         total_price: number;
+        item_type?: 'service' | 'product';
     }>;
     subtotal: number;
+    services_subtotal?: number;
+    products_subtotal?: number;
+    service_discount?: { type: 'percent' | 'fixed'; value: number; amount: number };
+    product_discount?: { type: 'percent' | 'fixed'; value: number; amount: number };
     discount_percent?: number;
     discount_amount?: number;
     coupon_code?: string;
@@ -88,12 +93,15 @@ export default function BillingPage() {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [selectedProducts, setSelectedProducts] = useState<Map<string, number>>(new Map());
-    const [discount, setDiscount] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'card'>('cash');
     const [customerSearch, setCustomerSearch] = useState("");
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-    const [productSearch, setProductSearch] = useState("");
-    const [showProductDropdown, setShowProductDropdown] = useState(false);
+
+    // Separate discount state for services and products
+    const [serviceDiscountType, setServiceDiscountType] = useState<'percent' | 'fixed'>('percent');
+    const [serviceDiscountValue, setServiceDiscountValue] = useState(0);
+    const [productDiscountType, setProductDiscountType] = useState<'percent' | 'fixed'>('percent');
+    const [productDiscountValue, setProductDiscountValue] = useState(0);
 
     // Coupon state
     const [couponCode, setCouponCode] = useState("");
@@ -209,16 +217,17 @@ export default function BillingPage() {
         }
     };
 
-    // Product selection helpers
-    const addProduct = (productId: string) => {
+    // Product selection helpers - grid-based toggle
+    const toggleProduct = (productId: string) => {
         setSelectedProducts(prev => {
             const newMap = new Map(prev);
-            const current = newMap.get(productId) || 0;
-            newMap.set(productId, current + 1);
+            if (newMap.has(productId)) {
+                newMap.delete(productId);
+            } else {
+                newMap.set(productId, 1);
+            }
             return newMap;
         });
-        setProductSearch("");
-        setShowProductDropdown(false);
         if (appliedCoupon) {
             setAppliedCoupon(null);
             setCouponCode("");
@@ -237,19 +246,6 @@ export default function BillingPage() {
         });
     };
 
-    const removeProduct = (productId: string) => {
-        setSelectedProducts(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(productId);
-            return newMap;
-        });
-    };
-
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) &&
-        !selectedProducts.has(p.id)
-    );
-
     // Calculate subtotals
     const servicesSubtotal = selectedServices.reduce((sum, id) => {
         const service = services.find(s => s.id === id);
@@ -261,14 +257,21 @@ export default function BillingPage() {
         return sum + ((product?.sellingPrice || 0) * qty);
     }, 0);
 
-    const subtotal = servicesSubtotal + productsSubtotal;
+    // Calculate separate discounts
+    const serviceDiscountAmount = serviceDiscountType === 'percent'
+        ? (servicesSubtotal * serviceDiscountValue) / 100
+        : Math.min(serviceDiscountValue, servicesSubtotal);
 
-    // Calculate discount (coupon takes priority over manual)
-    const couponDiscount = appliedCoupon?.discount_amount || 0;
-    const manualDiscountAmount = appliedCoupon ? 0 : (subtotal * discount) / 100;
-    const totalDiscount = couponDiscount || manualDiscountAmount;
+    const productDiscountAmount = productDiscountType === 'percent'
+        ? (productsSubtotal * productDiscountValue) / 100
+        : Math.min(productDiscountValue, productsSubtotal);
 
-    const taxableAmount = subtotal - totalDiscount;
+    const servicesAfterDiscount = servicesSubtotal - serviceDiscountAmount;
+    const productsAfterDiscount = productsSubtotal - productDiscountAmount;
+    const subtotal = servicesAfterDiscount + productsAfterDiscount;
+    const totalDiscount = serviceDiscountAmount + productDiscountAmount;
+
+    const taxableAmount = subtotal;
     const gstAmount = (taxableAmount * gstPercentage) / 100;
     const total = taxableAmount + gstAmount;
 
@@ -292,7 +295,9 @@ export default function BillingPage() {
 
             if (data.valid) {
                 setAppliedCoupon(data);
-                setDiscount(0); // Clear manual discount
+                // Clear manual discounts when coupon is applied
+                setServiceDiscountValue(0);
+                setProductDiscountValue(0);
             } else {
                 setCouponError(data.message || 'Invalid coupon');
                 setAppliedCoupon(null);
@@ -361,11 +366,10 @@ export default function BillingPage() {
                 body: JSON.stringify({
                     customer_id: selectedCustomer?.id || null,
                     items: allItems,
-                    subtotal,
-                    discount_percent: appliedCoupon ? null : discount,
+                    subtotal: servicesSubtotal + productsSubtotal,
+                    service_discount: { type: serviceDiscountType, value: serviceDiscountValue, amount: serviceDiscountAmount },
+                    product_discount: { type: productDiscountType, value: productDiscountValue, amount: productDiscountAmount },
                     discount_amount: totalDiscount,
-                    coupon_id: appliedCoupon?.coupon_id || null,
-                    coupon_code: appliedCoupon ? couponCode : null,
                     tax_percent: gstPercentage,
                     tax_amount: gstAmount,
                     final_amount: total,
@@ -399,23 +403,35 @@ export default function BillingPage() {
                 }
             }
 
-            // Prepare invoice data
+            // Prepare invoice data with separate service/product breakdown
             const invoiceData: BillData = {
                 id: data.bill.id,
                 invoice_number: data.bill.invoice_number,
                 created_at: data.bill.created_at,
                 salon: salonInfo,
                 customer: selectedCustomer || undefined,
-                items: allItems.map(i => ({
-                    service_name: i.service_name,
-                    quantity: i.quantity,
-                    unit_price: i.unit_price,
-                    total_price: i.unit_price * i.quantity,
-                })),
-                subtotal,
-                discount_percent: appliedCoupon ? undefined : discount,
+                items: [
+                    ...serviceItems.map(i => ({
+                        service_name: i.service_name,
+                        quantity: i.quantity,
+                        unit_price: i.unit_price,
+                        total_price: i.unit_price * i.quantity,
+                        item_type: 'service' as const,
+                    })),
+                    ...productItems.map(i => ({
+                        service_name: i.service_name,
+                        quantity: i.quantity,
+                        unit_price: i.unit_price,
+                        total_price: i.unit_price * i.quantity,
+                        item_type: 'product' as const,
+                    })),
+                ],
+                subtotal: servicesSubtotal + productsSubtotal,
+                services_subtotal: servicesSubtotal,
+                products_subtotal: productsSubtotal,
+                service_discount: { type: serviceDiscountType, value: serviceDiscountValue, amount: serviceDiscountAmount },
+                product_discount: { type: productDiscountType, value: productDiscountValue, amount: productDiscountAmount },
                 discount_amount: totalDiscount,
-                coupon_code: appliedCoupon ? couponCode : undefined,
                 tax_percent: gstPercentage,
                 tax_amount: gstAmount,
                 final_amount: total,
@@ -467,7 +483,11 @@ export default function BillingPage() {
         setBillData(null);
         setSelectedCustomer(null);
         setSelectedServices([]);
-        setDiscount(0);
+        setSelectedProducts(new Map());
+        setServiceDiscountType('percent');
+        setServiceDiscountValue(0);
+        setProductDiscountType('percent');
+        setProductDiscountValue(0);
         setPaymentMethod('cash');
         setCustomerSearch("");
         setCouponCode("");
@@ -515,28 +535,75 @@ export default function BillingPage() {
             <Header title="Billing / POS" subtitle="Quick checkout" />
 
             <div className={styles.container}>
-                {/* Services Grid */}
-                <div className={styles.servicesPanel}>
-                    <h3 className={styles.panelTitle}>Select Services</h3>
-                    {services.length === 0 ? (
-                        <div className={styles.emptyServices}>
-                            <p>No services available</p>
-                        </div>
-                    ) : (
-                        <div className={styles.servicesGrid}>
-                            {services.map(service => (
-                                <button
-                                    key={service.id}
-                                    className={`${styles.serviceCard} ${selectedServices.includes(service.id) ? styles.selected : ''}`}
-                                    onClick={() => toggleService(service.id)}
-                                >
-                                    <span className={styles.serviceName}>{service.name}</span>
-                                    <span className={styles.servicePrice}>₹{service.price}</span>
-                                    <span className={styles.serviceDuration}>{service.durationMinutes}m</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                {/* Left Panel: Services and Products Grids */}
+                <div className={styles.leftPanel}>
+                    {/* Services Grid */}
+                    <div className={styles.servicesPanel}>
+                        <h3 className={styles.panelTitle}>Select Services</h3>
+                        {services.length === 0 ? (
+                            <div className={styles.emptyServices}>
+                                <p>No services available</p>
+                            </div>
+                        ) : (
+                            <div className={styles.servicesGrid}>
+                                {services.map(service => (
+                                    <button
+                                        key={service.id}
+                                        className={`${styles.serviceCard} ${selectedServices.includes(service.id) ? styles.selected : ''}`}
+                                        onClick={() => toggleService(service.id)}
+                                    >
+                                        <span className={styles.serviceName}>{service.name}</span>
+                                        <span className={styles.servicePrice}>₹{service.price}</span>
+                                        <span className={styles.serviceDuration}>{service.durationMinutes}m</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Products Grid */}
+                    <div className={styles.productsPanel}>
+                        <h3 className={styles.panelTitle}>Select Products</h3>
+                        {products.length === 0 ? (
+                            <div className={styles.emptyServices}>
+                                <p>No products available</p>
+                            </div>
+                        ) : (
+                            <div className={styles.servicesGrid}>
+                                {products.map(product => {
+                                    const isSelected = selectedProducts.has(product.id);
+                                    const qty = selectedProducts.get(product.id) || 0;
+                                    const isOutOfStock = (product.stock || 0) <= 0;
+                                    return (
+                                        <div
+                                            key={product.id}
+                                            className={`${styles.productCard} ${isSelected ? styles.selected : ''} ${isOutOfStock ? styles.outOfStock : ''}`}
+                                        >
+                                            <button
+                                                className={styles.productCardBtn}
+                                                onClick={() => !isOutOfStock && toggleProduct(product.id)}
+                                                disabled={isOutOfStock}
+                                            >
+                                                <span className={styles.serviceName}>{product.name}</span>
+                                                <span className={styles.servicePrice}>₹{product.sellingPrice}</span>
+                                                <span className={styles.productStock}>{product.stock} in stock</span>
+                                            </button>
+                                            {isSelected && (
+                                                <div className={styles.qtyControls}>
+                                                    <button onClick={() => updateProductQuantity(product.id, qty - 1)}>−</button>
+                                                    <span>{qty}</span>
+                                                    <button
+                                                        onClick={() => updateProductQuantity(product.id, qty + 1)}
+                                                        disabled={qty >= (product.stock || 0)}
+                                                    >+</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Bill Summary */}
@@ -566,10 +633,7 @@ export default function BillingPage() {
                                         setShowCustomerDropdown(true);
                                     }}
                                     onFocus={() => setShowCustomerDropdown(true)}
-                                    onBlur={() => {
-                                        // Delay hiding dropdown to allow click to register
-                                        setTimeout(() => setShowCustomerDropdown(false), 200);
-                                    }}
+                                    onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
                                 />
                                 {showCustomerDropdown && customerSearch && filteredCustomers.length > 0 && (
                                     <div className={styles.customerDropdown}>
@@ -578,7 +642,7 @@ export default function BillingPage() {
                                                 key={c.id}
                                                 className={styles.customerOption}
                                                 onMouseDown={(e) => {
-                                                    e.preventDefault(); // Prevent blur
+                                                    e.preventDefault();
                                                     setSelectedCustomer(c);
                                                     setCustomerSearch("");
                                                     setShowCustomerDropdown(false);
@@ -597,139 +661,117 @@ export default function BillingPage() {
                         )}
                     </div>
 
-                    {/* Selected Services */}
-                    <div className={styles.billItems}>
-                        <div className={styles.billSectionLabel}>Services</div>
+                    {/* Services Section with Discount */}
+                    <div className={styles.billSection}>
+                        <div className={styles.billSectionHeader}>
+                            <span className={styles.billSectionLabel}>Services</span>
+                            <span className={styles.billSectionTotal}>₹{servicesSubtotal.toLocaleString()}</span>
+                        </div>
                         {selectedServices.length === 0 ? (
                             <p className={styles.noItems}>No services selected</p>
                         ) : (
-                            selectedServices.map(id => {
-                                const service = services.find(s => s.id === id);
-                                if (!service) return null;
-                                return (
-                                    <div key={id} className={styles.billItem}>
-                                        <span>{service.name}</span>
-                                        <span>₹{service.price}</span>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-
-                    {/* Product Selection */}
-                    <div className={styles.productSection}>
-                        <div className={styles.billSectionLabel}>Products</div>
-                        <div className={styles.productSearchWrapper}>
-                            <input
-                                type="text"
-                                className={styles.productSearch}
-                                placeholder="Search and add product..."
-                                value={productSearch}
-                                onChange={e => {
-                                    setProductSearch(e.target.value);
-                                    setShowProductDropdown(true);
-                                }}
-                                onFocus={() => setShowProductDropdown(true)}
-                                onBlur={() => setTimeout(() => setShowProductDropdown(false), 200)}
-                            />
-                            {showProductDropdown && productSearch && filteredProducts.length > 0 && (
-                                <div className={styles.productDropdown}>
-                                    {filteredProducts.slice(0, 5).map(p => (
+                            <>
+                                {selectedServices.map(id => {
+                                    const service = services.find(s => s.id === id);
+                                    if (!service) return null;
+                                    return (
+                                        <div key={id} className={styles.billItem}>
+                                            <span>{service.name}</span>
+                                            <span>₹{service.price}</span>
+                                        </div>
+                                    );
+                                })}
+                                {/* Service Discount */}
+                                <div className={styles.discountControl}>
+                                    <span>Discount</span>
+                                    <div className={styles.discountInputGroup}>
                                         <button
-                                            key={p.id}
-                                            className={styles.productOption}
-                                            onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                addProduct(p.id);
-                                            }}
-                                        >
-                                            <div className={styles.productOptionInfo}>
-                                                <span className={styles.productName}>{p.name}</span>
-                                                <span className={styles.productMeta}>₹{p.sellingPrice} · {p.stock} in stock</span>
-                                            </div>
-                                            <span className={styles.addProductIcon}>+</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Selected Products with quantity */}
-                        {Array.from(selectedProducts.entries()).map(([productId, qty]) => {
-                            const product = products.find(p => p.id === productId);
-                            if (!product) return null;
-                            const isOverStock = product.stock !== undefined && qty > product.stock;
-                            return (
-                                <div key={productId} className={`${styles.productItem} ${isOverStock ? styles.overStock : ''}`}>
-                                    <div className={styles.productItemInfo}>
-                                        <span className={styles.productItemName}>{product.name}</span>
-                                        <span className={styles.productItemPrice}>₹{(product.sellingPrice || 0) * qty}</span>
+                                            className={`${styles.discountTypeBtn} ${serviceDiscountType === 'percent' ? styles.active : ''}`}
+                                            onClick={() => setServiceDiscountType('percent')}
+                                        >%</button>
+                                        <button
+                                            className={`${styles.discountTypeBtn} ${serviceDiscountType === 'fixed' ? styles.active : ''}`}
+                                            onClick={() => setServiceDiscountType('fixed')}
+                                        >₹</button>
+                                        <input
+                                            type="number"
+                                            value={serviceDiscountValue || ''}
+                                            onChange={e => setServiceDiscountValue(Math.max(0, Number(e.target.value)))}
+                                            placeholder="0"
+                                            min={0}
+                                            max={serviceDiscountType === 'percent' ? 100 : servicesSubtotal}
+                                        />
                                     </div>
-                                    <div className={styles.productItemControls}>
-                                        <button onClick={() => updateProductQuantity(productId, qty - 1)}>−</button>
-                                        <span>{qty}</span>
-                                        <button onClick={() => updateProductQuantity(productId, qty + 1)}>+</button>
-                                        <button className={styles.removeProduct} onClick={() => removeProduct(productId)}>✕</button>
-                                    </div>
-                                    {isOverStock && <span className={styles.stockWarning}>Only {product.stock} available</span>}
+                                    {serviceDiscountAmount > 0 && (
+                                        <span className={styles.discountAmount}>-₹{serviceDiscountAmount.toLocaleString()}</span>
+                                    )}
                                 </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Coupon Code */}
-                    <div className={styles.couponSection}>
-                        {appliedCoupon ? (
-                            <div className={styles.appliedCoupon}>
-                                <span>🎫 {couponCode.toUpperCase()}</span>
-                                <span className={styles.couponDiscount}>-₹{couponDiscount.toLocaleString()}</span>
-                                <button onClick={removeCoupon} className={styles.removeCoupon}>✕</button>
-                            </div>
-                        ) : (
-                            <div className={styles.couponInput}>
-                                <input
-                                    type="text"
-                                    placeholder="Enter coupon code"
-                                    value={couponCode}
-                                    onChange={e => {
-                                        setCouponCode(e.target.value.toUpperCase());
-                                        setCouponError("");
-                                    }}
-                                />
-                                <button
-                                    onClick={validateCoupon}
-                                    disabled={!couponCode.trim() || isValidatingCoupon || selectedServices.length === 0}
-                                >
-                                    {isValidatingCoupon ? '...' : 'Apply'}
-                                </button>
-                            </div>
+                            </>
                         )}
-                        {couponError && <p className={styles.couponError}>{couponError}</p>}
                     </div>
 
-                    {/* Manual Discount (only if no coupon) */}
-                    {!appliedCoupon && (
-                        <div className={styles.discountRow}>
-                            <label>Discount (%)</label>
-                            <input
-                                type="number"
-                                value={discount}
-                                onChange={e => setDiscount(Math.min(100, Math.max(0, Number(e.target.value))))}
-                                min={0}
-                                max={100}
-                            />
+                    {/* Products Section with Discount */}
+                    <div className={styles.billSection}>
+                        <div className={styles.billSectionHeader}>
+                            <span className={styles.billSectionLabel}>Products</span>
+                            <span className={styles.billSectionTotal}>₹{productsSubtotal.toLocaleString()}</span>
                         </div>
-                    )}
+                        {selectedProducts.size === 0 ? (
+                            <p className={styles.noItems}>No products selected</p>
+                        ) : (
+                            <>
+                                {Array.from(selectedProducts.entries()).map(([productId, qty]) => {
+                                    const product = products.find(p => p.id === productId);
+                                    if (!product) return null;
+                                    return (
+                                        <div key={productId} className={styles.billItem}>
+                                            <span>{product.name} × {qty}</span>
+                                            <span>₹{((product.sellingPrice || 0) * qty).toLocaleString()}</span>
+                                        </div>
+                                    );
+                                })}
+                                {/* Product Discount */}
+                                <div className={styles.discountControl}>
+                                    <span>Discount</span>
+                                    <div className={styles.discountInputGroup}>
+                                        <button
+                                            className={`${styles.discountTypeBtn} ${productDiscountType === 'percent' ? styles.active : ''}`}
+                                            onClick={() => setProductDiscountType('percent')}
+                                        >%</button>
+                                        <button
+                                            className={`${styles.discountTypeBtn} ${productDiscountType === 'fixed' ? styles.active : ''}`}
+                                            onClick={() => setProductDiscountType('fixed')}
+                                        >₹</button>
+                                        <input
+                                            type="number"
+                                            value={productDiscountValue || ''}
+                                            onChange={e => setProductDiscountValue(Math.max(0, Number(e.target.value)))}
+                                            placeholder="0"
+                                            min={0}
+                                            max={productDiscountType === 'percent' ? 100 : productsSubtotal}
+                                        />
+                                    </div>
+                                    {productDiscountAmount > 0 && (
+                                        <span className={styles.discountAmount}>-₹{productDiscountAmount.toLocaleString()}</span>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
 
                     {/* Totals */}
                     <div className={styles.totals}>
                         <div className={styles.totalRow}>
-                            <span>Subtotal</span>
-                            <span>₹{subtotal.toLocaleString()}</span>
+                            <span>Services (after discount)</span>
+                            <span>₹{servicesAfterDiscount.toLocaleString()}</span>
+                        </div>
+                        <div className={styles.totalRow}>
+                            <span>Products (after discount)</span>
+                            <span>₹{productsAfterDiscount.toLocaleString()}</span>
                         </div>
                         {totalDiscount > 0 && (
                             <div className={styles.totalRow}>
-                                <span>Discount {appliedCoupon ? `(${couponCode})` : `(${discount}%)`}</span>
+                                <span>Total Discount</span>
                                 <span className={styles.discount}>-₹{totalDiscount.toLocaleString()}</span>
                             </div>
                         )}
@@ -771,7 +813,7 @@ export default function BillingPage() {
                     <button
                         className={styles.payBtn}
                         onClick={handlePayment}
-                        disabled={selectedServices.length === 0 || isSaving}
+                        disabled={(selectedServices.length === 0 && selectedProducts.size === 0) || isSaving}
                     >
                         {isSaving ? 'Processing...' : `Complete Payment - ₹${total.toLocaleString()}`}
                     </button>

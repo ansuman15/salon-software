@@ -7,6 +7,13 @@ interface InvoiceItem {
     quantity: number;
     unit_price: number;
     total_price: number;
+    item_type?: 'service' | 'product';
+}
+
+interface DiscountInfo {
+    type: 'percent' | 'fixed';
+    value: number;
+    amount: number;
 }
 
 interface InvoiceData {
@@ -26,6 +33,10 @@ interface InvoiceData {
     };
     items: InvoiceItem[];
     subtotal: number;
+    services_subtotal?: number;
+    products_subtotal?: number;
+    service_discount?: DiscountInfo;
+    product_discount?: DiscountInfo;
     discount_percent?: number;
     discount_amount?: number;
     coupon_code?: string;
@@ -48,6 +59,17 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data }, ref) => {
             hour: '2-digit',
             minute: '2-digit',
         });
+    };
+
+    // Separate items by type
+    const serviceItems = data.items.filter(i => i.item_type === 'service' || !i.item_type);
+    const productItems = data.items.filter(i => i.item_type === 'product');
+
+    const formatDiscount = (discount: DiscountInfo) => {
+        if (discount.type === 'percent') {
+            return `${discount.value}%`;
+        }
+        return `₹${discount.value}`;
     };
 
     return (
@@ -81,27 +103,71 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data }, ref) => {
                 </div>
             )}
 
-            {/* Items Table */}
-            <table style={styles.table}>
-                <thead>
-                    <tr style={styles.tableHeader}>
-                        <th style={{ ...styles.th, textAlign: 'left' as const }}>Service</th>
-                        <th style={styles.th}>Qty</th>
-                        <th style={styles.th}>Price</th>
-                        <th style={{ ...styles.th, textAlign: 'right' as const }}>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.items.map((item, index) => (
-                        <tr key={index} style={styles.tableRow}>
-                            <td style={styles.td}>{item.service_name}</td>
-                            <td style={{ ...styles.td, textAlign: 'center' as const }}>{item.quantity}</td>
-                            <td style={{ ...styles.td, textAlign: 'center' as const }}>₹{item.unit_price}</td>
-                            <td style={{ ...styles.td, textAlign: 'right' as const }}>₹{item.total_price}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            {/* Services Section */}
+            {serviceItems.length > 0 && (
+                <>
+                    <h3 style={styles.sectionLabel}>SERVICES</h3>
+                    <table style={styles.table}>
+                        <thead>
+                            <tr style={styles.tableHeader}>
+                                <th style={{ ...styles.th, textAlign: 'left' as const }}>Service</th>
+                                <th style={styles.th}>Qty</th>
+                                <th style={styles.th}>Price</th>
+                                <th style={{ ...styles.th, textAlign: 'right' as const }}>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {serviceItems.map((item, index) => (
+                                <tr key={index} style={styles.tableRow}>
+                                    <td style={styles.td}>{item.service_name}</td>
+                                    <td style={{ ...styles.td, textAlign: 'center' as const }}>{item.quantity}</td>
+                                    <td style={{ ...styles.td, textAlign: 'center' as const }}>₹{item.unit_price}</td>
+                                    <td style={{ ...styles.td, textAlign: 'right' as const }}>₹{item.total_price}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {data.service_discount && data.service_discount.amount > 0 && (
+                        <div style={styles.discountRow}>
+                            <span>Service Discount ({formatDiscount(data.service_discount)})</span>
+                            <span style={{ color: '#22c55e' }}>-₹{data.service_discount.amount.toLocaleString()}</span>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Products Section */}
+            {productItems.length > 0 && (
+                <>
+                    <h3 style={styles.sectionLabel}>PRODUCTS</h3>
+                    <table style={styles.table}>
+                        <thead>
+                            <tr style={styles.tableHeader}>
+                                <th style={{ ...styles.th, textAlign: 'left' as const }}>Product</th>
+                                <th style={styles.th}>Qty</th>
+                                <th style={styles.th}>Price</th>
+                                <th style={{ ...styles.th, textAlign: 'right' as const }}>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {productItems.map((item, index) => (
+                                <tr key={index} style={styles.tableRow}>
+                                    <td style={styles.td}>{item.service_name}</td>
+                                    <td style={{ ...styles.td, textAlign: 'center' as const }}>{item.quantity}</td>
+                                    <td style={{ ...styles.td, textAlign: 'center' as const }}>₹{item.unit_price}</td>
+                                    <td style={{ ...styles.td, textAlign: 'right' as const }}>₹{item.total_price}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {data.product_discount && data.product_discount.amount > 0 && (
+                        <div style={styles.discountRow}>
+                            <span>Product Discount ({formatDiscount(data.product_discount)})</span>
+                            <span style={{ color: '#22c55e' }}>-₹{data.product_discount.amount.toLocaleString()}</span>
+                        </div>
+                    )}
+                </>
+            )}
 
             {/* Totals */}
             <div style={styles.totalsSection}>
@@ -112,8 +178,8 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data }, ref) => {
                 {data.discount_amount && data.discount_amount > 0 && (
                     <div style={styles.totalRow}>
                         <span>
-                            Discount {data.coupon_code && `(${data.coupon_code})`}
-                            {data.discount_percent && ` - ${data.discount_percent}%`}
+                            Total Discount
+                            {data.coupon_code && ` (${data.coupon_code})`}
                         </span>
                         <span style={{ color: '#22c55e' }}>-₹{data.discount_amount.toLocaleString()}</span>
                     </div>
@@ -220,6 +286,23 @@ const styles: { [key: string]: React.CSSProperties } = {
         fontSize: '12px',
         color: '#6b7280',
         margin: '2px 0',
+    },
+    sectionLabel: {
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#6b7280',
+        textTransform: 'uppercase' as const,
+        margin: '16px 0 8px 0',
+        letterSpacing: '0.5px',
+    },
+    discountRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        padding: '8px 0',
+        fontSize: '12px',
+        color: '#6b7280',
+        borderBottom: '1px dashed #e5e7eb',
+        marginBottom: '8px',
     },
     table: {
         width: '100%',
