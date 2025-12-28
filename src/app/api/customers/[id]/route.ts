@@ -113,40 +113,61 @@ export async function DELETE(
     try {
         const session = await verifySession();
         if (!session) {
+            console.error('[Customer DELETE] No session found');
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
         const { id } = await params;
+        console.log('[Customer DELETE] Deleting customer:', id, 'for salon:', session.salonId);
 
         const supabase = getSupabaseAdmin();
 
         // Verify customer belongs to this salon
         const { data: existing, error: fetchError } = await supabase
             .from('customers')
-            .select('id')
+            .select('id, name')
             .eq('id', id)
             .eq('salon_id', session.salonId)
             .single();
 
-        if (fetchError || !existing) {
+        if (fetchError) {
+            console.error('[Customer DELETE] Fetch error:', fetchError);
+            return NextResponse.json({ error: 'Customer not found or access denied' }, { status: 404 });
+        }
+
+        if (!existing) {
+            console.error('[Customer DELETE] Customer not found:', id);
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
 
-        // Delete customer
+        console.log('[Customer DELETE] Found customer:', existing.name);
+
+        // Delete customer - include salon_id for RLS policies
         const { error: deleteError } = await supabase
             .from('customers')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .eq('salon_id', session.salonId);
 
         if (deleteError) {
-            console.error('[Customer API] Delete error:', deleteError);
-            return NextResponse.json({ error: 'Failed to delete customer' }, { status: 500 });
+            console.error('[Customer DELETE] Supabase delete error:', {
+                message: deleteError.message,
+                code: deleteError.code,
+                details: deleteError.details,
+                hint: deleteError.hint
+            });
+            return NextResponse.json({
+                error: deleteError.message || 'Failed to delete customer',
+                code: deleteError.code
+            }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true });
+        console.log('[Customer DELETE] Successfully deleted:', id);
+        return NextResponse.json({ success: true, message: 'Customer deleted' });
 
     } catch (error) {
-        console.error('[Customer API] Error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        console.error('[Customer DELETE] Unexpected error:', error);
+        const message = error instanceof Error ? error.message : 'Internal server error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
