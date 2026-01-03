@@ -996,15 +996,54 @@
 @media (max-width: 1024px) {
     .container {
         grid-template-columns: 1fr;
+        height: auto;
+    }
+
+    .leftPanel {
+        max-height: 50vh;
     }
 }
 
 @media (max-width: 768px) {
     .container {
+        padding: var(--space-3);
+        gap: var(--space-3);
+    }
+
+    .leftPanel {
+        max-height: none;
+    }
+
+    .productsPanel,
+    .servicesPanel {
         padding: var(--space-4);
     }
 
     .invoiceActions {
         flex-direction: column;
+    }
+
+    /* Touch-friendly buttons */
+    .paymentBtn,
+    .saveBtn {
+        min-height: 48px;
+        font-size: var(--text-base);
+    }
+
+    .qtyControls button {
+        width: 32px;
+        height: 32px;
+    }
+
+    /* Grid adjustments */
+    .servicesGrid,
+    .productsGrid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-2);
+    }
+
+    .serviceCard,
+    .productCard {
+        padding: var(--space-3);
     }
 }

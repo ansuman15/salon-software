@@ -159,3 +159,93 @@
 .logoutBtn:hover svg {
     transform: translateX(-2px);
 }
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 99;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .overlay.visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+/* Mobile Toggle Button */
+.mobileToggle {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    background: var(--text-primary);
+    border: none;
+    border-radius: var(--radius-full);
+    color: white;
+    cursor: pointer;
+    z-index: 101;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.mobileToggle:hover {
+    transform: scale(1.05);
+}
+
+.mobileToggle:active {
+    transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+    .mobileToggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* Close button inside sidebar for mobile */
+.closeBtn {
+    display: none;
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--sidebar-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.closeBtn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--sidebar-text);
+}
+
+@media (max-width: 768px) {
+    .closeBtn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
