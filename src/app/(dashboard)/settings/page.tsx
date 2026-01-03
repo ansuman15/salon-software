@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
 import { useToast } from "@/components/ui/Toast";
@@ -10,6 +10,9 @@ export default function SettingsPage() {
     const { session, loading, refresh } = useSession();
     const toast = useToast();
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [logoUploading, setLogoUploading] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form state with defaults
     const [formData, setFormData] = useState({
@@ -35,6 +38,10 @@ export default function SettingsPage() {
                 phone: session.salon?.phone || '',
                 city: session.salon?.city || '',
             }));
+            // Set logo preview if exists
+            if (session.salon?.logo_url) {
+                setPreviewUrl(session.salon.logo_url);
+            }
         }
     }, [session]);
 
@@ -49,6 +56,112 @@ export default function SettingsPage() {
             ? formData.workingDays.filter(d => d !== dayIndex)
             : [...formData.workingDays, dayIndex].sort();
         setFormData({ ...formData, workingDays: newDays });
+    };
+
+    // Logo upload handler
+    const handleLogoUpload = async (file: File) => {
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+        if (!allowedTypes.includes(file.type)) {
+            toast.error('Invalid file type. Use JPG, PNG, WebP, or SVG.');
+            return;
+        }
+
+        // Validate file size (2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error('File too large. Maximum size is 2MB.');
+            return;
+        }
+
+        setLogoUploading(true);
+
+        try {
+            // Show preview immediately
+            const reader = new FileReader();
+            reader.onload = (e) => setPreviewUrl(e.target?.result as string);
+            reader.readAsDataURL(file);
+
+            // Upload to API
+            const formData = new FormData();
+            formData.append('logo', file);
+
+            const res = await fetch('/api/salon/logo', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to upload logo');
+            }
+
+            toast.success('Logo uploaded successfully!');
+            setPreviewUrl(data.logo_url);
+
+            // Refresh session to update sidebar
+            if (refresh) {
+                await refresh();
+            }
+        } catch (error) {
+            console.error('Logo upload error:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to upload logo');
+            // Revert preview
+            setPreviewUrl(session?.salon?.logo_url || null);
+        } finally {
+            setLogoUploading(false);
+        }
+    };
+
+    // Logo delete handler
+    const handleLogoDelete = async () => {
+        if (!previewUrl) return;
+
+        setLogoUploading(true);
+
+        try {
+            const res = await fetch('/api/salon/logo', {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to remove logo');
+            }
+
+            toast.success('Logo removed!');
+            setPreviewUrl(null);
+
+            if (refresh) {
+                await refresh();
+            }
+        } catch (error) {
+            console.error('Logo delete error:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to remove logo');
+        } finally {
+            setLogoUploading(false);
+        }
+    };
+
+    // File input change handler
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleLogoUpload(file);
+        }
+    };
+
+    // Drag and drop handlers
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+            handleLogoUpload(file);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
     };
 
     const handleSave = async () => {
@@ -101,6 +214,54 @@ export default function SettingsPage() {
             <Header title="Settings" subtitle="Configure your salon" />
 
             <div className={styles.container}>
+                {/* Logo Upload Section */}
+                <section className={styles.section}>
+                    <h3 className={styles.sectionTitle}>Salon Logo</h3>
+                    <div className={styles.logoUploadContainer}>
+                        <div
+                            className={`${styles.logoDropzone} ${logoUploading ? styles.uploading : ''}`}
+                            onClick={() => fileInputRef.current?.click()}
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                        >
+                            {previewUrl ? (
+                                <img src={previewUrl} alt="Salon Logo" className={styles.logoPreview} />
+                            ) : (
+                                <div className={styles.logoPlaceholder}>
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <polyline points="21 15 16 10 5 21" />
+                                    </svg>
+                                    <span>Click or drag to upload logo</span>
+                                    <small>JPG, PNG, WebP, SVG • Max 2MB</small>
+                                </div>
+                            )}
+                            {logoUploading && (
+                                <div className={styles.uploadingOverlay}>
+                                    <div className={styles.spinner}></div>
+                                </div>
+                            )}
+                        </div>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                            className={styles.hiddenInput}
+                        />
+                        {previewUrl && !logoUploading && (
+                            <button
+                                type="button"
+                                className={styles.deleteLogoBtn}
+                                onClick={handleLogoDelete}
+                            >
+                                Remove Logo
+                            </button>
+                        )}
+                    </div>
+                </section>
+
                 {/* Salon Info */}
                 <section className={styles.section}>
                     <h3 className={styles.sectionTitle}>Salon Information</h3>

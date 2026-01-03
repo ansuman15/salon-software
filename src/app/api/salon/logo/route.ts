@@ -5,11 +5,15 @@ import { cookies } from 'next/headers';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Security: Allowed image types and max size
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+
 export async function POST(request: NextRequest) {
     try {
         // Get session from cookie
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
+        const sessionCookie = cookieStore.get('salon_session');
 
         if (!sessionCookie?.value) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -32,14 +36,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-            return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
+        // Validate file type (strict check)
+        if (!ALLOWED_TYPES.includes(file.type)) {
+            return NextResponse.json({
+                error: 'Invalid file type. Allowed: JPG, PNG, WebP, SVG'
+            }, { status: 400 });
         }
 
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            return NextResponse.json({ error: 'File must be less than 5MB' }, { status: 400 });
+        // Validate file size (max 2MB for security)
+        if (file.size > MAX_SIZE) {
+            return NextResponse.json({
+                error: 'File too large. Maximum size: 2MB'
+            }, { status: 400 });
         }
 
         // Create unique filename
