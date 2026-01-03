@@ -1,0 +1,215 @@
+/* Loading Skeleton Styles */
+.loadingContainer {
+    padding: var(--space-6);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Shimmer Animation */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.skeleton {
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-md);
+}
+
+/* Header Skeleton */
+.headerSkeleton {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-5);
+}
+
+.skeletonTitle {
+    width: 200px;
+    height: 32px;
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-md);
+}
+
+.skeletonActions {
+    display: flex;
+    gap: var(--space-3);
+}
+
+.skeletonBtn {
+    width: 120px;
+    height: 40px;
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-lg);
+}
+
+/* Stats Grid Skeleton */
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+.statCard {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.skeletonLabel {
+    width: 80px;
+    height: 14px;
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-sm);
+}
+
+.skeletonValue {
+    width: 100px;
+    height: 28px;
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-md);
+}
+
+/* Content Grid Skeleton */
+.contentGrid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--space-4);
+}
+
+.mainContent {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+}
+
+.tableHeader {
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tableRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tableRow:last-child {
+    border-bottom: none;
+}
+
+.skeletonAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    flex-shrink: 0;
+}
+
+.skeletonText {
+    flex: 1;
+    height: 16px;
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-sm);
+}
+
+.skeletonSmall {
+    width: 60px;
+    height: 14px;
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-sm);
+}
+
+.sideContent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.skeletonCard {
+    height: 200px;
+    background: linear-gradient(90deg,
+            var(--bg-secondary) 25%,
+            var(--bg-tertiary) 50%,
+            var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-xl);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .contentGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .statsGrid {
+        grid-template-columns: 1fr;
+    }
+}

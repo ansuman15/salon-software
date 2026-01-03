@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Verify salon still exists and is active
+        // Verify salon still exists and is active, and get full data
         const supabase = getSupabaseAdmin();
         const { data: salon } = await supabase
             .from('salons')
-            .select('id, status')
+            .select('id, name, owner_email, phone, city, logo_url, status')
             .eq('id', session.salonId)
             .single();
 
@@ -59,9 +59,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             authenticated: true,
             salon: {
-                id: session.salonId,
-                name: session.name,
-                email: session.email,
+                id: salon.id,
+                name: salon.name,
+                email: salon.owner_email,
+                phone: salon.phone || '',
+                city: salon.city || '',
+                logo_url: salon.logo_url || null,
             },
         });
 

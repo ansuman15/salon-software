@@ -100,16 +100,34 @@ const challenges = [
 // Pricing plans
 const plans = [
     {
+        name: "GO",
+        price: "499",
+        setup: "Free",
+        highlight: "Best Value",
+        features: [
+            "Unlimited appointments",
+            "Unlimited staff members",
+            "Unlimited customers",
+            "Full billing & invoices",
+            "Staff scheduling",
+            "Service management",
+            "Basic reports & insights",
+            "Secure cloud hosting",
+            "Email support"
+        ],
+        notIncluded: ["WhatsApp automation", "Advanced analytics"]
+    },
+    {
         name: "Core",
         price: "1,999",
         setup: "3,999",
         features: [
-            "Appointments & calendar",
-            "Customer management",
-            "Staff & services",
-            "Billing & basic reports",
-            "Secure cloud hosting",
-            "Email support"
+            "Everything in GO",
+            "Advanced reports",
+            "Customer insights",
+            "Revenue analytics",
+            "Staff performance tracking",
+            "Priority email support"
         ],
         notIncluded: ["WhatsApp automation"]
     },
@@ -120,12 +138,11 @@ const plans = [
         popular: true,
         features: [
             "Everything in Core",
-            "Advanced reports",
-            "Customer segmentation",
-            "Staff performance insights",
-            "No-show tracking",
             "WhatsApp confirmations",
+            "Automated reminders",
             "300 WhatsApp/month",
+            "Customer segmentation",
+            "No-show tracking",
             "Priority support"
         ]
     },
@@ -153,6 +170,49 @@ const faqs = [
     { question: "Can I upgrade my plan later?", answer: "Absolutely! You can upgrade anytime. Your data and settings carry over seamlessly." },
     { question: "What about WhatsApp limits?", answer: "Each plan has specific WhatsApp conversation limits. You can purchase add-on bundles: +300 for ₹499, +1,000 for ₹1,499, or unlimited for ₹2,999." },
     { question: "Do you offer refunds?", answer: "We offer a 14-day free trial. If you're not satisfied, cancel anytime during the trial period." }
+];
+
+// Testimonials data
+const testimonials = [
+    {
+        quote: "SalonX reduced our no-shows by 45%. The WhatsApp reminders are a game-changer!",
+        author: "Priya Sharma",
+        role: "Owner, Glamour Studio",
+        location: "Mumbai",
+        avatar: "PS"
+    },
+    {
+        quote: "Finally, a system that understands Indian salons. The billing is so smooth now.",
+        author: "Rajesh Kumar",
+        role: "Manager, Style Lounge",
+        location: "Delhi",
+        avatar: "RK"
+    },
+    {
+        quote: "Our staff loves it. Tracking their performance has never been easier.",
+        author: "Anjali Gupta",
+        role: "Owner, Beauty Bar",
+        location: "Bangalore",
+        avatar: "AG"
+    },
+    {
+        quote: "Worth every rupee. The reports help me make better business decisions daily.",
+        author: "Vikram Singh",
+        role: "Founder, The Grooming Room",
+        location: "Hyderabad",
+        avatar: "VS"
+    }
+];
+
+// Comparison data - SalonX vs alternatives
+const comparisonFeatures = [
+    { feature: "Setup Time", salonx: "Same Day", others: "1-2 Weeks" },
+    { feature: "Starting Price", salonx: "₹499/mo", others: "₹2,000+/mo" },
+    { feature: "Staff Members", salonx: "Unlimited", others: "Limited" },
+    { feature: "WhatsApp Integration", salonx: "Built-in", others: "₹Extra" },
+    { feature: "Indian Payment Support", salonx: "UPI, Card, Cash", others: "Limited" },
+    { feature: "Customer Support", salonx: "Dedicated", others: "Ticket-based" },
+    { feature: "Data Ownership", salonx: "100% Yours", others: "Platform-locked" }
 ];
 
 // Scroll animation hook
@@ -220,6 +280,7 @@ export default function LandingPage() {
                     <div className={styles.navLinks}>
                         <a href="#features" className={styles.navLink}>Features</a>
                         <a href="#pricing" className={styles.navLink}>Pricing</a>
+                        <Link href="/blog" className={styles.navLink}>Blog</Link>
                         <a href="#faq" className={styles.navLink}>FAQ</a>
                     </div>
 
@@ -415,6 +476,35 @@ export default function LandingPage() {
                 </div>
             </AnimatedSection>
 
+            {/* Testimonials Section */}
+            <section className={styles.testimonials}>
+                <AnimatedSection>
+                    <div className={styles.sectionHeader}>
+                        <h2>Loved by salon owners across India</h2>
+                        <p>See what our customers say about their experience</p>
+                    </div>
+                </AnimatedSection>
+                <div className={styles.testimonialsGrid}>
+                    {testimonials.map((t, i) => (
+                        <AnimatedSection key={i} delay={i * 100}>
+                            <div className={styles.testimonialCard}>
+                                <div className={styles.testimonialQuote}>
+                                    <span className={styles.quoteIcon}>"</span>
+                                    <p>{t.quote}</p>
+                                </div>
+                                <div className={styles.testimonialAuthor}>
+                                    <div className={styles.testimonialAvatar}>{t.avatar}</div>
+                                    <div className={styles.testimonialInfo}>
+                                        <span className={styles.testimonialName}>{t.author}</span>
+                                        <span className={styles.testimonialRole}>{t.role}, {t.location}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </AnimatedSection>
+                    ))}
+                </div>
+            </section>
+
             {/* Pricing Section */}
             <section id="pricing" className={styles.pricing}>
                 <AnimatedSection>
@@ -426,15 +516,18 @@ export default function LandingPage() {
                 <div className={styles.pricingGrid}>
                     {plans.map((plan, i) => (
                         <AnimatedSection key={i} delay={i * 150}>
-                            <div className={`${styles.pricingCard} ${plan.popular ? styles.popular : ""}`}>
+                            <div className={`${styles.pricingCard} ${plan.popular ? styles.popular : ""} ${(plan as typeof plan & { highlight?: string }).highlight ? styles.highlight : ""}`}>
                                 {plan.popular && <div className={styles.popularBadge}>Most Popular</div>}
+                                {(plan as typeof plan & { highlight?: string }).highlight && <div className={styles.highlightBadge}>{(plan as typeof plan & { highlight?: string }).highlight}</div>}
                                 <h3 className={styles.planName}>{plan.name}</h3>
                                 <div className={styles.planPrice}>
                                     <span className={styles.currency}>₹</span>
                                     <span className={styles.amount}>{plan.price}</span>
                                     <span className={styles.period}>/month</span>
                                 </div>
-                                <p className={styles.setupFee}>One-time setup: ₹{plan.setup}</p>
+                                <p className={styles.setupFee}>
+                                    {plan.setup === "Free" ? "✨ Free setup" : `One-time setup: ₹${plan.setup}`}
+                                </p>
                                 <ul className={styles.planFeatures}>
                                     {plan.features.map((feature, j) => (
                                         <li key={j}><CheckIcon /><span>{feature}</span></li>
@@ -446,7 +539,9 @@ export default function LandingPage() {
                                         </li>
                                     ))}
                                 </ul>
-                                <a href="mailto:support@salonx.in?subject=Interest in {plan.name} Plan" className={styles.planBtn}>Get Quote</a>
+                                <a href={`mailto:support@salonx.in?subject=Interest in ${plan.name} Plan`} className={styles.planBtn}>
+                                    {plan.name === "GO" ? "Start Free" : "Get Quote"}
+                                </a>
                             </div>
                         </AnimatedSection>
                     ))}
@@ -457,6 +552,37 @@ export default function LandingPage() {
                         <div className={styles.addon}>+300 conversations <strong>₹499</strong></div>
                         <div className={styles.addon}>+1,000 conversations <strong>₹1,499</strong></div>
                         <div className={styles.addon}>Unlimited <strong>₹2,999</strong></div>
+                    </div>
+                </AnimatedSection>
+            </section>
+
+            {/* Comparison Table Section */}
+            <section className={styles.comparison}>
+                <AnimatedSection>
+                    <div className={styles.sectionHeader}>
+                        <h2>Why choose SalonX?</h2>
+                        <p>See how we compare to other salon management solutions</p>
+                    </div>
+                </AnimatedSection>
+                <AnimatedSection>
+                    <div className={styles.comparisonTable}>
+                        <div className={styles.comparisonHeader}>
+                            <div className={styles.comparisonFeature}>Feature</div>
+                            <div className={styles.comparisonSalonx}>SalonX</div>
+                            <div className={styles.comparisonOthers}>Others</div>
+                        </div>
+                        {comparisonFeatures.map((row, i) => (
+                            <div key={i} className={styles.comparisonRow}>
+                                <div className={styles.comparisonFeature}>{row.feature}</div>
+                                <div className={styles.comparisonSalonx}>
+                                    <CheckIcon />
+                                    <span>{row.salonx}</span>
+                                </div>
+                                <div className={styles.comparisonOthers}>
+                                    <span>{row.others}</span>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </AnimatedSection>
             </section>

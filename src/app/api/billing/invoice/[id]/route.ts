@@ -21,7 +21,7 @@ async function getSession(): Promise<SessionData | null> {
 
 /**
  * GET /api/billing/invoice/[id]
- * Get complete invoice data for PDF generation
+ * Get complete invoice data for PDF generation with staff attribution
  */
 export async function GET(
     request: NextRequest,
@@ -35,7 +35,52 @@ export async function GET(
 
         const supabase = getSupabaseAdmin();
 
-        // Get bill with items
+        // Try fetching from new invoices table first
+        const { data: invoice, error: invoiceError } = await supabase
+            .from('invoices')
+            .select(`
+                *,
+                customer:customers(id, name, phone, email),
+                billed_by:staff!billed_by_staff_id(id, name, role)
+            `)
+            .eq('id', params.id)
+            .eq('salon_id', session.salonId)
+            .single();
+
+        if (invoice) {
+            // Fetch items with staff attribution
+            const { data: items } = await supabase
+                .from('invoice_items')
+                .select(`
+                    *,
+                    performing_staff:staff!staff_id(id, name)
+                `)
+                .eq('invoice_id', params.id);
+
+            // Get salon details
+            const { data: salon } = await supabase
+                .from('salons')
+                .select('*')
+                .eq('id', session.salonId)
+                .single();
+
+            return NextResponse.json({
+                invoice: {
+                    ...invoice,
+                    items: items || [],
+                    salon: {
+                        name: salon?.name || 'SalonX',
+                        address: salon?.address || '',
+                        phone: salon?.phone || '',
+                        email: salon?.email || '',
+                        gst_number: salon?.gst_number || '',
+                        logo: salon?.logo_url || '',
+                    },
+                },
+            });
+        }
+
+        // Fallback: Try old bills table for backward compatibility
         const { data: bill, error: billError } = await supabase
             .from('bills')
             .select(`
@@ -67,7 +112,7 @@ export async function GET(
                     phone: salon?.phone || '',
                     email: salon?.email || '',
                     gst_number: salon?.gst_number || '',
-                    logo: salon?.logo || '',
+                    logo: salon?.logo_url || '',
                 },
             },
         });

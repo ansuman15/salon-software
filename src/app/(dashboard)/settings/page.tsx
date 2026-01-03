@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import { useSession } from "@/lib/SessionContext";
+import { useToast } from "@/components/ui/Toast";
 import styles from "./page.module.css";
 
 export default function SettingsPage() {
-    const { session, loading } = useSession();
-    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const { session, loading, refresh } = useSession();
+    const toast = useToast();
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
     // Form state with defaults
     const [formData, setFormData] = useState({
@@ -23,6 +25,18 @@ export default function SettingsPage() {
         whatsappEnabled: false,
         whatsappNumber: '',
     });
+
+    // Load initial data from session when available
+    useEffect(() => {
+        if (session?.salon) {
+            setFormData(prev => ({
+                ...prev,
+                name: session.salon?.name || '',
+                phone: session.salon?.phone || '',
+                city: session.salon?.city || '',
+            }));
+        }
+    }, [session]);
 
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -40,12 +54,42 @@ export default function SettingsPage() {
     const handleSave = async () => {
         setSaveStatus('saving');
 
-        // TODO: Implement API call to update settings in Supabase
-        // For now, just show saved status
-        setTimeout(() => {
+        try {
+            console.log('[Settings] Saving settings...', formData);
+
+            const res = await fetch('/api/salon', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.name,
+                    phone: formData.phone,
+                    city: formData.city,
+                    gst_percentage: formData.gstPercentage,
+                }),
+            });
+
+            const data = await res.json();
+            console.log('[Settings] Save response:', data);
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to save settings');
+            }
+
             setSaveStatus('saved');
+            toast.success('Settings saved successfully!');
+
+            // Refresh session to get updated data
+            if (refresh) {
+                await refresh();
+            }
+
             setTimeout(() => setSaveStatus('idle'), 2000);
-        }, 500);
+        } catch (error) {
+            console.error('[Settings] Save error:', error);
+            setSaveStatus('error');
+            toast.error(error instanceof Error ? error.message : 'Failed to save settings');
+            setTimeout(() => setSaveStatus('idle'), 3000);
+        }
     };
 
     if (loading) {

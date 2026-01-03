@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 import styles from "./page.module.css";
 
 export default function ProfilePage() {
-    const { session, loading } = useSession();
+    const { session, loading, refresh } = useSession();
     const toast = useToast();
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -29,26 +29,68 @@ export default function ProfilePage() {
     const salonName = session?.salon?.name || 'Your Salon';
     const salonEmail = session?.salon?.email || '';
 
+    // Load initial data from session
     useEffect(() => {
-        if (session?.salon?.logo_url) {
-            setLogoUrl(session.salon.logo_url);
+        if (session?.salon) {
+            setFormData({
+                name: '',
+                salonName: session.salon.name || '',
+                phone: session.salon.phone || '',
+                city: session.salon.city || '',
+            });
+            if (session.salon.logo_url) {
+                setLogoUrl(session.salon.logo_url);
+            }
         }
     }, [session]);
 
     const handleSave = async () => {
+        console.log('[Profile] Starting save...', { formData });
         setIsSaving(true);
         setMessage(null);
 
         try {
-            // TODO: Implement API call to update profile in Supabase
-            await new Promise(resolve => setTimeout(resolve, 500));
+            const payload = {
+                name: formData.salonName,
+                phone: formData.phone,
+                city: formData.city,
+            };
+
+            console.log('[Profile] Sending PATCH to /api/salon with:', payload);
+
+            const res = await fetch('/api/salon', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            console.log('[Profile] Response status:', res.status);
+
+            const data = await res.json();
+            console.log('[Profile] Response data:', data);
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to update profile');
+            }
 
             setMessage({ type: 'success', text: 'Profile updated successfully!' });
+            toast.success('Profile saved successfully!');
             setIsEditing(false);
-        } catch {
-            setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
+            console.log('[Profile] Save successful, refreshing session...');
+
+            // Refresh session to get updated data
+            if (refresh) {
+                await refresh();
+                console.log('[Profile] Session refreshed');
+            }
+        } catch (error) {
+            console.error('[Profile] Save error:', error);
+            const errorMsg = error instanceof Error ? error.message : 'Failed to update profile. Please try again.';
+            setMessage({ type: 'error', text: errorMsg });
+            toast.error(errorMsg);
         } finally {
             setIsSaving(false);
+            console.log('[Profile] Save process completed');
         }
     };
 

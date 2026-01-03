@@ -3,11 +3,14 @@
 import React, { forwardRef } from 'react';
 
 interface InvoiceItem {
-    service_name: string;
+    service_name?: string;
+    item_name?: string;
     quantity: number;
     unit_price: number;
     total_price: number;
     item_type?: 'service' | 'product';
+    staff_name?: string; // Name of staff who performed service
+    performing_staff?: { id: string; name: string }; // From API join
 }
 
 interface DiscountInfo {
@@ -31,6 +34,9 @@ interface InvoiceData {
         phone?: string;
         email?: string;
     };
+    // Staff Attribution
+    billed_by?: { id: string; name: string; role?: string };
+    billed_by_name?: string;
     items: InvoiceItem[];
     subtotal: number;
     services_subtotal?: number;
@@ -111,20 +117,24 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data }, ref) => {
                         <thead>
                             <tr style={styles.tableHeader}>
                                 <th style={{ ...styles.th, textAlign: 'left' as const }}>Service</th>
-                                <th style={styles.th}>Qty</th>
+                                <th style={styles.th}>By</th>
                                 <th style={styles.th}>Price</th>
                                 <th style={{ ...styles.th, textAlign: 'right' as const }}>Amount</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {serviceItems.map((item, index) => (
-                                <tr key={index} style={styles.tableRow}>
-                                    <td style={styles.td}>{item.service_name}</td>
-                                    <td style={{ ...styles.td, textAlign: 'center' as const }}>{item.quantity}</td>
-                                    <td style={{ ...styles.td, textAlign: 'center' as const }}>₹{item.unit_price}</td>
-                                    <td style={{ ...styles.td, textAlign: 'right' as const }}>₹{item.total_price}</td>
-                                </tr>
-                            ))}
+                            {serviceItems.map((item, index) => {
+                                const staffName = item.staff_name || item.performing_staff?.name || '-';
+                                const itemName = item.item_name || item.service_name || 'Service';
+                                return (
+                                    <tr key={index} style={styles.tableRow}>
+                                        <td style={styles.td}>{itemName}</td>
+                                        <td style={{ ...styles.td, textAlign: 'center' as const, fontSize: '11px', color: '#6b7280' }}>{staffName}</td>
+                                        <td style={{ ...styles.td, textAlign: 'center' as const }}>₹{item.unit_price}</td>
+                                        <td style={{ ...styles.td, textAlign: 'right' as const }}>₹{item.total_price}</td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                     {data.service_discount && data.service_discount.amount > 0 && (
@@ -150,14 +160,17 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data }, ref) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {productItems.map((item, index) => (
-                                <tr key={index} style={styles.tableRow}>
-                                    <td style={styles.td}>{item.service_name}</td>
-                                    <td style={{ ...styles.td, textAlign: 'center' as const }}>{item.quantity}</td>
-                                    <td style={{ ...styles.td, textAlign: 'center' as const }}>₹{item.unit_price}</td>
-                                    <td style={{ ...styles.td, textAlign: 'right' as const }}>₹{item.total_price}</td>
-                                </tr>
-                            ))}
+                            {productItems.map((item, index) => {
+                                const itemName = item.item_name || item.service_name || 'Product';
+                                return (
+                                    <tr key={index} style={styles.tableRow}>
+                                        <td style={styles.td}>{itemName}</td>
+                                        <td style={{ ...styles.td, textAlign: 'center' as const }}>{item.quantity}</td>
+                                        <td style={{ ...styles.td, textAlign: 'center' as const }}>₹{item.unit_price}</td>
+                                        <td style={{ ...styles.td, textAlign: 'right' as const }}>₹{item.total_price}</td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                     {data.product_discount && data.product_discount.amount > 0 && (
@@ -198,7 +211,14 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data }, ref) => {
 
             {/* Payment Info */}
             <div style={styles.paymentInfo}>
-                <p>Payment Method: <strong>{data.payment_method.toUpperCase()}</strong></p>
+                <div>
+                    <p style={{ margin: 0 }}>Payment: <strong>{data.payment_method.toUpperCase()}</strong></p>
+                    {(data.billed_by || data.billed_by_name) && (
+                        <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#6b7280' }}>
+                            Billed by: {data.billed_by?.name || data.billed_by_name}
+                        </p>
+                    )}
+                </div>
                 <p style={styles.paidBadge}>✓ PAID</p>
             </div>
 

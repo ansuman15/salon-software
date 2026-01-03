@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, DbProduct } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
-
-interface SessionData {
-    salonId: string;
-}
-
-async function getSession(): Promise<SessionData | null> {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('salonx_session');
-    if (!sessionCookie) return null;
-    try {
-        return JSON.parse(sessionCookie.value);
-    } catch {
-        return null;
-    }
-}
 
 /**
  * GET /api/products
@@ -25,7 +10,7 @@ async function getSession(): Promise<SessionData | null> {
  */
 export async function GET(request: NextRequest) {
     try {
-        const session = await getSession();
+        const session = await verifySession();
         if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
@@ -69,7 +54,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getSession();
+        const session = await verifySession();
         if (!session?.salonId) {
             console.error('[Products API] No session found');
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

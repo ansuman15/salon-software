@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await verifySession();
@@ -18,11 +18,12 @@ export async function GET(
             return unauthorizedResponse();
         }
 
+        const { id } = await params;
         const supabase = getSupabaseAdmin();
         const { data, error } = await supabase
             .from('products')
             .select('*, inventory(*)')
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('salon_id', session.salonId)
             .single();
 
@@ -44,7 +45,7 @@ export async function GET(
  */
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await verifySession();
@@ -52,6 +53,7 @@ export async function PATCH(
             return unauthorizedResponse();
         }
 
+        const { id } = await params;
         const body = await request.json();
         const { name, category, brand, type, unit, cost_price, selling_price, is_active, image_url } = body;
 
@@ -78,7 +80,7 @@ export async function PATCH(
         const { data, error } = await supabase
             .from('products')
             .update(updates)
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('salon_id', session.salonId)
             .select()
             .single();
@@ -101,7 +103,7 @@ export async function PATCH(
  */
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await verifySession();
@@ -109,19 +111,20 @@ export async function DELETE(
             return unauthorizedResponse();
         }
 
+        const { id } = await params;
         const supabase = getSupabaseAdmin();
 
         // Delete inventory records first (foreign key constraint)
         await supabase
             .from('inventory')
             .delete()
-            .eq('product_id', params.id);
+            .eq('product_id', id);
 
         // Permanent delete product
         const { error } = await supabase
             .from('products')
             .delete()
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('salon_id', session.salonId);
 
         if (error) {

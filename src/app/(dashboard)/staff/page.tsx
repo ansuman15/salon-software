@@ -24,6 +24,23 @@ interface Service {
     name: string;
 }
 
+interface StaffMetrics {
+    staff_id: string;
+    bills_created: number;
+    services_performed: number;
+    products_sold: number;
+    revenue_generated: number;
+    appointments_completed: number;
+}
+
+interface RecentInvoice {
+    id: string;
+    invoice_number: string;
+    total_amount: number;
+    created_at: string;
+    customer?: { id: string; name: string };
+}
+
 // Extended roles for salon staff
 const STAFF_ROLES = [
     "Hair Stylist",
@@ -52,6 +69,11 @@ export default function StaffPage() {
     const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [photoError, setPhotoError] = useState(false);
+
+    // Staff metrics state
+    const [staffMetrics, setStaffMetrics] = useState<StaffMetrics | null>(null);
+    const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
+    const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -137,9 +159,26 @@ export default function StaffPage() {
         setModalMode('edit');
     };
 
-    const openViewModal = (member: Staff) => {
+    const openViewModal = async (member: Staff) => {
         setSelectedStaff(member);
         setModalMode('view');
+        setStaffMetrics(null);
+        setRecentInvoices([]);
+
+        // Fetch staff metrics
+        setIsLoadingMetrics(true);
+        try {
+            const res = await fetch(`/api/staff/${member.id}/metrics`);
+            if (res.ok) {
+                const data = await res.json();
+                setStaffMetrics(data.metrics);
+                setRecentInvoices(data.recent_invoices || []);
+            }
+        } catch (error) {
+            console.error('Error loading staff metrics:', error);
+        } finally {
+            setIsLoadingMetrics(false);
+        }
     };
 
     const closeModal = () => {
@@ -555,14 +594,64 @@ export default function StaffPage() {
                                 </span>
                             </div>
                             <div className={styles.detailRow}>
-                                <span className={styles.detailLabel}>Total Appointments</span>
-                                <span className={styles.detailValue}>{getAppointmentCount(selectedStaff.id)}</span>
-                            </div>
-                            <div className={styles.detailRow}>
                                 <span className={styles.detailLabel}>Services Assigned</span>
                                 <span className={styles.detailValue}>{selectedStaff.serviceIds?.length || 0}</span>
                             </div>
                         </div>
+
+                        {/* Performance Metrics Section */}
+                        <div className={styles.metricsSection}>
+                            <h4 className={styles.sectionTitle}>Performance Metrics</h4>
+                            {isLoadingMetrics ? (
+                                <div className={styles.metricsLoading}>Loading metrics...</div>
+                            ) : staffMetrics ? (
+                                <div className={styles.metricsGrid}>
+                                    <div className={styles.metricCard}>
+                                        <span className={styles.metricValue}>{staffMetrics.appointments_completed}</span>
+                                        <span className={styles.metricLabel}>Appointments</span>
+                                    </div>
+                                    <div className={styles.metricCard}>
+                                        <span className={styles.metricValue}>{staffMetrics.services_performed}</span>
+                                        <span className={styles.metricLabel}>Services Done</span>
+                                    </div>
+                                    <div className={styles.metricCard}>
+                                        <span className={styles.metricValue}>{staffMetrics.products_sold}</span>
+                                        <span className={styles.metricLabel}>Products Sold</span>
+                                    </div>
+                                    <div className={styles.metricCard}>
+                                        <span className={styles.metricValue}>₹{staffMetrics.revenue_generated.toLocaleString()}</span>
+                                        <span className={styles.metricLabel}>Revenue</span>
+                                    </div>
+                                    <div className={styles.metricCard}>
+                                        <span className={styles.metricValue}>{staffMetrics.bills_created}</span>
+                                        <span className={styles.metricLabel}>Bills Created</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className={styles.metricsEmpty}>No metrics available</div>
+                            )}
+                        </div>
+
+                        {/* Recent Invoices Section */}
+                        {recentInvoices.length > 0 && (
+                            <div className={styles.recentInvoices}>
+                                <h4 className={styles.sectionTitle}>Recent Bills Created</h4>
+                                <div className={styles.invoicesList}>
+                                    {recentInvoices.map(invoice => (
+                                        <div key={invoice.id} className={styles.invoiceItem}>
+                                            <div className={styles.invoiceMain}>
+                                                <span className={styles.invoiceNumber}>{invoice.invoice_number}</span>
+                                                <span className={styles.invoiceAmount}>₹{invoice.total_amount.toLocaleString()}</span>
+                                            </div>
+                                            <div className={styles.invoiceMeta}>
+                                                <span>{invoice.customer?.name || 'Walk-in'}</span>
+                                                <span>{new Date(invoice.created_at).toLocaleDateString('en-IN')}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className={styles.profileActions}>
                             <button className={styles.editBtn} onClick={() => openEditModal(selectedStaff)}>

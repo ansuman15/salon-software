@@ -7,6 +7,8 @@ export interface SessionSalon {
     id: string;
     name: string;
     email: string;
+    phone?: string;
+    city?: string;
     logo_url?: string;
 }
 

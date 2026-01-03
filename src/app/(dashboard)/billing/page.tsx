@@ -38,6 +38,14 @@ interface ProductItem {
     quantity: number;
 }
 
+interface Staff {
+    id: string;
+    name: string;
+    role: string;
+    isActive: boolean;
+    isCashier?: boolean;
+}
+
 interface CouponResult {
     valid: boolean;
     message: string;
@@ -59,12 +67,15 @@ interface BillData {
         gst_number?: string;
     };
     customer?: Customer;
+    billed_by_name?: string;
     items: Array<{
-        service_name: string;
+        service_name?: string;
+        item_name?: string;
         quantity: number;
         unit_price: number;
         total_price: number;
         item_type?: 'service' | 'product';
+        staff_name?: string;
     }>;
     subtotal: number;
     services_subtotal?: number;
@@ -96,6 +107,11 @@ export default function BillingPage() {
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'card'>('cash');
     const [customerSearch, setCustomerSearch] = useState("");
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+    // Staff state for billing attribution
+    const [staffList, setStaffList] = useState<Staff[]>([]);
+    const [selectedBiller, setSelectedBiller] = useState<string | null>(null);
+    const [serviceStaffMap, setServiceStaffMap] = useState<Map<string, string>>(new Map()); // serviceId -> staffId
 
     // Separate discount state for services and products
     const [serviceDiscountType, setServiceDiscountType] = useState<'percent' | 'fixed'>('percent');
@@ -155,6 +171,14 @@ export default function BillingPage() {
                 setServices(activeServices);
             }
 
+            // Fetch staff for biller and service attribution
+            const staffRes = await fetch('/api/staff');
+            if (staffRes.ok) {
+                const data = await staffRes.json();
+                const activeStaff = (data.staff || []).filter((s: Staff) => s.isActive);
+                setStaffList(activeStaff);
+            }
+
             // Fetch products with inventory stock
             const inventoryRes = await fetch('/api/inventory');
             if (inventoryRes.ok) {
@@ -207,14 +231,33 @@ export default function BillingPage() {
     );
 
     const toggleService = (id: string) => {
-        setSelectedServices(prev =>
-            prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-        );
+        setSelectedServices(prev => {
+            if (prev.includes(id)) {
+                // Remove service and its staff mapping
+                setServiceStaffMap(prevMap => {
+                    const newMap = new Map(prevMap);
+                    newMap.delete(id);
+                    return newMap;
+                });
+                return prev.filter(s => s !== id);
+            } else {
+                return [...prev, id];
+            }
+        });
         // Clear coupon when services change
         if (appliedCoupon) {
             setAppliedCoupon(null);
             setCouponCode("");
         }
+    };
+
+    // Update staff assignment for a service
+    const updateServiceStaff = (serviceId: string, staffId: string) => {
+        setServiceStaffMap(prev => {
+            const newMap = new Map(prev);
+            newMap.set(serviceId, staffId);
+            return newMap;
+        });
     };
 
     // Product selection helpers - grid-based toggle
@@ -321,6 +364,21 @@ export default function BillingPage() {
             return;
         }
 
+        // Validate biller selection
+        if (!selectedBiller) {
+            toast.error('Please select a biller/cashier');
+            return;
+        }
+
+        // Validate staff assignment for services
+        for (const serviceId of selectedServices) {
+            if (!serviceStaffMap.has(serviceId)) {
+                const service = services.find(s => s.id === serviceId);
+                toast.error(`Please assign staff for "${service?.name || 'a service'}"`);
+                return;
+            }
+        }
+
         // Validate stock for products
         for (const [productId, qty] of Array.from(selectedProducts.entries())) {
             const product = products.find(p => p.id === productId);
@@ -333,38 +391,45 @@ export default function BillingPage() {
         setIsSaving(true);
 
         try {
-            // Build service items
+            // Build service items with staff attribution
             const serviceItems = selectedServices.map(id => {
                 const service = services.find(s => s.id === id);
+                const staffId = serviceStaffMap.get(id);
                 return {
-                    service_id: id,
-                    service_name: service?.name || 'Unknown',
+                    item_type: 'service',
+                    item_id: id,
+                    item_name: service?.name || 'Unknown',
+                    staff_id: staffId,
                     quantity: 1,
                     unit_price: service?.price || 0,
-                    item_type: 'service',
                 };
             });
 
-            // Build product items
+            // Build product items with staff attribution (biller as seller)
             const productItems = Array.from(selectedProducts.entries()).map(([productId, qty]) => {
                 const product = products.find(p => p.id === productId);
                 return {
-                    product_id: productId,
-                    service_name: product?.name || 'Unknown', // Using service_name for invoice compatibility
+                    item_type: 'product',
+                    item_id: productId,
+                    item_name: product?.name || 'Unknown',
+                    staff_id: selectedBiller, // Products sold by biller
                     quantity: qty,
                     unit_price: product?.sellingPrice || 0,
-                    item_type: 'product',
                 };
             });
 
             const allItems = [...serviceItems, ...productItems];
 
-            // Complete billing first
+            // Complete billing with staff attribution
             const res = await fetch('/api/billing/complete', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Idempotency-Key': `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                },
                 body: JSON.stringify({
                     customer_id: selectedCustomer?.id || null,
+                    billed_by_staff_id: selectedBiller,
                     items: allItems,
                     subtotal: servicesSubtotal + productsSubtotal,
                     service_discount: { type: serviceDiscountType, value: serviceDiscountValue, amount: serviceDiscountAmount },
@@ -388,7 +453,7 @@ export default function BillingPage() {
                     body: JSON.stringify({
                         billing_id: data.bill.id,
                         items: productItems.map(p => ({
-                            product_id: p.product_id,
+                            product_id: p.item_id,
                             quantity: p.quantity,
                             unit_price: p.unit_price,
                         })),
@@ -403,23 +468,29 @@ export default function BillingPage() {
                 }
             }
 
-            // Prepare invoice data with separate service/product breakdown
+            // Prepare invoice data with separate service/product breakdown + staff attribution
+            const billerStaff = staffList.find(s => s.id === selectedBiller);
             const invoiceData: BillData = {
                 id: data.bill.id,
                 invoice_number: data.bill.invoice_number,
                 created_at: data.bill.created_at,
                 salon: salonInfo,
                 customer: selectedCustomer || undefined,
+                billed_by_name: billerStaff?.name,
                 items: [
-                    ...serviceItems.map(i => ({
-                        service_name: i.service_name,
-                        quantity: i.quantity,
-                        unit_price: i.unit_price,
-                        total_price: i.unit_price * i.quantity,
-                        item_type: 'service' as const,
-                    })),
+                    ...serviceItems.map(i => {
+                        const performingStaff = staffList.find(s => s.id === i.staff_id);
+                        return {
+                            item_name: i.item_name,
+                            quantity: i.quantity,
+                            unit_price: i.unit_price,
+                            total_price: i.unit_price * i.quantity,
+                            item_type: 'service' as const,
+                            staff_name: performingStaff?.name,
+                        };
+                    }),
                     ...productItems.map(i => ({
-                        service_name: i.service_name,
+                        item_name: i.item_name,
                         quantity: i.quantity,
                         unit_price: i.unit_price,
                         total_price: i.unit_price * i.quantity,
@@ -492,6 +563,9 @@ export default function BillingPage() {
         setCustomerSearch("");
         setCouponCode("");
         setAppliedCoupon(null);
+        // Reset staff selections
+        setSelectedBiller(null);
+        setServiceStaffMap(new Map());
     };
 
     const getInitials = (name: string) =>
@@ -661,6 +735,25 @@ export default function BillingPage() {
                         )}
                     </div>
 
+                    {/* Biller / Cashier Selection (REQUIRED) */}
+                    <div className={styles.billerSection}>
+                        <label className={styles.billerLabel}>
+                            Billed By <span className={styles.required}>*</span>
+                        </label>
+                        <select
+                            className={`${styles.billerSelect} ${!selectedBiller ? styles.invalid : ''}`}
+                            value={selectedBiller || ''}
+                            onChange={e => setSelectedBiller(e.target.value || null)}
+                        >
+                            <option value="">Select staff...</option>
+                            {staffList.map(staff => (
+                                <option key={staff.id} value={staff.id}>
+                                    {staff.name} ({staff.role})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* Services Section with Discount */}
                     <div className={styles.billSection}>
                         <div className={styles.billSectionHeader}>
@@ -674,10 +767,25 @@ export default function BillingPage() {
                                 {selectedServices.map(id => {
                                     const service = services.find(s => s.id === id);
                                     if (!service) return null;
+                                    const assignedStaffId = serviceStaffMap.get(id);
                                     return (
-                                        <div key={id} className={styles.billItem}>
-                                            <span>{service.name}</span>
-                                            <span>₹{service.price}</span>
+                                        <div key={id} className={styles.billItemWithStaff}>
+                                            <div className={styles.billItem}>
+                                                <span>{service.name}</span>
+                                                <span>₹{service.price}</span>
+                                            </div>
+                                            <select
+                                                className={`${styles.staffSelect} ${!assignedStaffId ? styles.invalid : ''}`}
+                                                value={assignedStaffId || ''}
+                                                onChange={e => updateServiceStaff(id, e.target.value)}
+                                            >
+                                                <option value="">Assign staff...</option>
+                                                {staffList.map(staff => (
+                                                    <option key={staff.id} value={staff.id}>
+                                                        {staff.name}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
                                     );
                                 })}
