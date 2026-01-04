@@ -60,12 +60,13 @@ export default function ReportsPage() {
     const loadReports = useCallback(async () => {
         try {
             // Fetch all data in parallel
-            const [customersRes, appointmentsRes, servicesRes, staffRes, revenueRes] = await Promise.all([
+            const [customersRes, appointmentsRes, servicesRes, staffRes, revenueRes, performanceRes] = await Promise.all([
                 fetch('/api/customers'),
                 fetch('/api/appointments'),
                 fetch('/api/services'),
                 fetch('/api/staff'),
                 fetch('/api/reports/revenue').catch(() => null),
+                fetch('/api/reports/performance').catch(() => null),
             ]);
 
             let customers: Customer[] = [];
@@ -99,46 +100,64 @@ export default function ReportsPage() {
                 monthRevenue = revenueData.month || 0;
             }
 
+            // Get performance data from billing (preferred) or fallback to appointments
+            let topServices: { name: string; count: number; revenue: number }[] = [];
+            let staffPerformance: { name: string; appointments: number; revenue: number }[] = [];
+
+            if (performanceRes && performanceRes.ok) {
+                const perfData = await performanceRes.json();
+                topServices = perfData.topServices || [];
+                // Map services from billing to match expected format
+                staffPerformance = (perfData.staffPerformance || []).map((s: { name: string; services: number; revenue: number }) => ({
+                    name: s.name,
+                    appointments: s.services, // services performed = billing items
+                    revenue: s.revenue,
+                }));
+            }
+
+            // Fallback: If no billing data, calculate from appointments
+            if (topServices.length === 0 && appointments.length > 0) {
+                const serviceCount: Record<string, { count: number; revenue: number }> = {};
+                appointments.forEach(apt => {
+                    apt.serviceIds.forEach(id => {
+                        if (!serviceCount[id]) serviceCount[id] = { count: 0, revenue: 0 };
+                        serviceCount[id].count++;
+                        const service = services.find(s => s.id === id);
+                        if (service) serviceCount[id].revenue += service.price;
+                    });
+                });
+
+                topServices = Object.entries(serviceCount)
+                    .map(([id, data]) => ({
+                        name: services.find(s => s.id === id)?.name || 'Unknown',
+                        count: data.count,
+                        revenue: data.revenue,
+                    }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 5);
+            }
+
+            if (staffPerformance.length === 0 && appointments.length > 0) {
+                const staffStats: Record<string, { appointments: number; revenue: number }> = {};
+                appointments.forEach(apt => {
+                    if (!staffStats[apt.staffId]) staffStats[apt.staffId] = { appointments: 0, revenue: 0 };
+                    staffStats[apt.staffId].appointments++;
+                });
+
+                staffPerformance = Object.entries(staffStats)
+                    .map(([id, stats]) => ({
+                        name: staff.find(s => s.id === id)?.name || 'Unknown',
+                        appointments: stats.appointments,
+                        revenue: stats.revenue,
+                    }))
+                    .sort((a, b) => b.appointments - a.appointments)
+                    .slice(0, 5);
+            }
+
             // Calculate new customers this month
             const monthAgo = new Date();
             monthAgo.setDate(monthAgo.getDate() - 30);
             const newCustomersThisMonth = customers.filter(c => new Date(c.createdAt) >= monthAgo).length;
-
-            // Calculate top services
-            const serviceCount: Record<string, { count: number; revenue: number }> = {};
-            appointments.forEach(apt => {
-                apt.serviceIds.forEach(id => {
-                    if (!serviceCount[id]) serviceCount[id] = { count: 0, revenue: 0 };
-                    serviceCount[id].count++;
-                    const service = services.find(s => s.id === id);
-                    if (service) serviceCount[id].revenue += service.price;
-                });
-            });
-
-            const topServices = Object.entries(serviceCount)
-                .map(([id, data]) => ({
-                    name: services.find(s => s.id === id)?.name || 'Unknown',
-                    count: data.count,
-                    revenue: data.revenue,
-                }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5);
-
-            // Calculate staff performance
-            const staffStats: Record<string, { appointments: number; revenue: number }> = {};
-            appointments.forEach(apt => {
-                if (!staffStats[apt.staffId]) staffStats[apt.staffId] = { appointments: 0, revenue: 0 };
-                staffStats[apt.staffId].appointments++;
-            });
-
-            const staffPerformance = Object.entries(staffStats)
-                .map(([id, stats]) => ({
-                    name: staff.find(s => s.id === id)?.name || 'Unknown',
-                    appointments: stats.appointments,
-                    revenue: stats.revenue,
-                }))
-                .sort((a, b) => b.appointments - a.appointments)
-                .slice(0, 5);
 
             setData({
                 todayRevenue,

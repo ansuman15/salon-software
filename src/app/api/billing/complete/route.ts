@@ -130,6 +130,7 @@ export async function POST(request: NextRequest) {
             service_id: item.item_type === 'service' ? (item.item_id || item.service_id) : null,
             product_id: item.item_type === 'product' ? (item.item_id || item.product_id) : null,
             service_name: item.item_name || item.service_name || 'Unknown',
+            staff_id: item.staff_id || null, // Track which staff performed this service/sold this product
             quantity: item.quantity || 1,
             unit_price: item.unit_price,
             total_price: (item.quantity || 1) * item.unit_price,
