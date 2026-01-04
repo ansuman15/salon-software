@@ -595,7 +595,9 @@ export default function StaffPage() {
                             </div>
                             <div className={styles.detailRow}>
                                 <span className={styles.detailLabel}>Services Assigned</span>
-                                <span className={styles.detailValue}>{selectedStaff.serviceIds?.length || 0}</span>
+                                <span className={styles.detailValue}>
+                                    {staffMetrics ? staffMetrics.services_performed : (selectedStaff.serviceIds?.length || 0)}
+                                </span>
                             </div>
                         </div>
 
@@ -628,7 +630,7 @@ export default function StaffPage() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className={styles.metricsEmpty}>No metrics available</div>
+                                <div className={styles.metricsEmpty}>Unable to load performance metrics</div>
                             )}
                         </div>
 

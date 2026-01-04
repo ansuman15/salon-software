@@ -10,22 +10,50 @@ interface SessionData {
 
 async function getSession(): Promise<SessionData | null> {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('salonx_session');
-    if (!sessionCookie) return null;
+    // Try salon_session first (new format), fallback to salonx_session (old format)
+    let sessionCookie = cookieStore.get('salon_session');
+    if (!sessionCookie?.value) {
+        sessionCookie = cookieStore.get('salonx_session');
+    }
+    if (!sessionCookie?.value) return null;
     try {
-        return JSON.parse(sessionCookie.value);
+        const session = JSON.parse(sessionCookie.value);
+        const salonId = session.salon_id || session.salonId;
+        if (!salonId || salonId === 'admin') return null;
+        return { salonId };
     } catch {
         return null;
     }
 }
 
+interface BillItem {
+    id: string;
+    bill_id: string;
+    service_id: string | null;
+    product_id: string | null;
+    service_name: string;
+    staff_id: string | null;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+}
+
+interface Bill {
+    id: string;
+    invoice_number: string;
+    created_at: string;
+    final_amount: number;
+    payment_status: string;
+    customer: { id: string; name: string } | null;
+}
+
 /**
  * GET /api/staff/[id]/metrics
- * Get real-time performance metrics for a staff member
+ * Get real-time performance metrics for a staff member from billing data
  */
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getSession();
@@ -33,7 +61,7 @@ export async function GET(
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        const staffId = params.id;
+        const { id: staffId } = await params;
 
         if (!staffId) {
             return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 });
@@ -41,56 +69,80 @@ export async function GET(
 
         const supabase = getSupabaseAdmin();
 
-        // Get staff performance metrics from view
-        const { data: metrics, error: metricsError } = await supabase
-            .from('staff_performance')
-            .select('*')
-            .eq('staff_id', staffId)
-            .eq('salon_id', session.salonId)
-            .single();
+        // Get date range for this month
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
 
-        if (metricsError && metricsError.code !== 'PGRST116') {
-            console.error('Staff metrics error:', metricsError);
-        }
-
-        // Get recent invoices where staff was biller or performer
-        const { data: recentInvoicesAsBiller } = await supabase
-            .from('invoices')
+        // Get all paid bills for this salon
+        const { data: bills, error: billsError } = await supabase
+            .from('bills')
             .select(`
                 id,
                 invoice_number,
-                total_amount,
-                payment_method,
                 created_at,
+                final_amount,
+                payment_status,
                 customer:customers(id, name)
             `)
             .eq('salon_id', session.salonId)
-            .eq('billed_by_staff_id', staffId)
-            .order('created_at', { ascending: false })
-            .limit(5);
+            .eq('payment_status', 'paid')
+            .gte('created_at', monthAgo.toISOString())
+            .order('created_at', { ascending: false });
 
-        // Get recent invoice items where staff performed service
-        const { data: recentServices } = await supabase
-            .from('invoice_items')
-            .select(`
-                id,
-                item_type,
-                item_name,
-                total_price,
-                created_at,
-                invoice:invoices!inner(
-                    id,
-                    invoice_number,
-                    salon_id,
-                    customer:customers(id, name)
-                )
-            `)
-            .eq('staff_id', staffId)
-            .eq('invoice.salon_id', session.salonId)
-            .order('created_at', { ascending: false })
-            .limit(10);
+        if (billsError) {
+            console.error('[Staff Metrics] Bills error:', billsError);
+        }
 
-        // Get appointment count
+        const billIds = (bills || []).map(b => b.id);
+
+        // Get bill items where this staff performed services or sold products
+        let staffBillItems: BillItem[] = [];
+        if (billIds.length > 0) {
+            const { data: items, error: itemsError } = await supabase
+                .from('bill_items')
+                .select('*')
+                .in('bill_id', billIds)
+                .eq('staff_id', staffId);
+
+            if (itemsError) {
+                console.error('[Staff Metrics] Bill items error:', itemsError);
+            }
+            staffBillItems = items || [];
+        }
+
+        // Calculate metrics from bill items
+        let servicesPerformed = 0;
+        let productsSold = 0;
+        let revenueGenerated = 0;
+        const serviceBillIds = new Set<string>();
+
+        staffBillItems.forEach((item: BillItem) => {
+            if (item.service_id) {
+                servicesPerformed += item.quantity || 1;
+                serviceBillIds.add(item.bill_id);
+            }
+            if (item.product_id) {
+                productsSold += item.quantity || 1;
+            }
+            revenueGenerated += item.total_price || 0;
+        });
+
+        // Get recent bills/invoices where this staff performed services
+        const recentBillIds = Array.from(serviceBillIds).slice(0, 5);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const recentInvoices = (bills || [])
+            .filter((b: { id: string }) => recentBillIds.includes(b.id))
+            .slice(0, 5)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((b: any) => ({
+                id: b.id,
+                invoice_number: b.invoice_number,
+                total_amount: b.final_amount,
+                created_at: b.created_at,
+                customer: Array.isArray(b.customer) ? b.customer[0] : b.customer,
+            }));
+
+        // Get appointment count for this staff
         const { count: appointmentCount } = await supabase
             .from('appointments')
             .select('*', { count: 'exact', head: true })
@@ -102,18 +154,29 @@ export async function GET(
             success: true,
             metrics: {
                 staff_id: staffId,
-                bills_created: metrics?.bills_created || 0,
-                services_performed: metrics?.services_performed || 0,
-                products_sold: metrics?.products_sold || 0,
-                revenue_generated: metrics?.revenue_generated || 0,
-                total_items_handled: metrics?.total_items_handled || 0,
+                bills_created: serviceBillIds.size, // Bills where staff performed services
+                services_performed: servicesPerformed,
+                products_sold: productsSold,
+                revenue_generated: Math.round(revenueGenerated * 100) / 100,
+                total_items_handled: staffBillItems.length,
                 appointments_completed: appointmentCount || 0,
             },
-            recent_invoices: recentInvoicesAsBiller || [],
-            recent_services: recentServices || [],
+            recent_invoices: recentInvoices,
         });
     } catch (error) {
-        console.error('Staff metrics error:', error);
-        return NextResponse.json({ error: 'Failed to fetch staff metrics' }, { status: 500 });
+        console.error('[Staff Metrics] Error:', error);
+        return NextResponse.json({
+            error: 'Failed to fetch staff metrics',
+            metrics: {
+                staff_id: '',
+                bills_created: 0,
+                services_performed: 0,
+                products_sold: 0,
+                revenue_generated: 0,
+                total_items_handled: 0,
+                appointments_completed: 0,
+            },
+            recent_invoices: []
+        }, { status: 500 });
     }
 }
