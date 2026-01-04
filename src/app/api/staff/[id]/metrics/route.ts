@@ -38,13 +38,15 @@ interface BillItem {
     total_price: number;
 }
 
+// Note: Supabase returns customer as array due to select syntax
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Bill {
     id: string;
     invoice_number: string;
     created_at: string;
     final_amount: number;
     payment_status: string;
-    customer: { id: string; name: string } | null;
+    customer: { id: string; name: string }[] | null;
 }
 
 /**
