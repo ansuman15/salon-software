@@ -50,17 +50,29 @@ export async function PATCH(
     try {
         const session = await verifySession();
         if (!session) {
+            console.error('[Product PATCH] No session found');
             return unauthorizedResponse();
         }
 
         const { id } = await params;
-        const body = await request.json();
+        console.log('[Product PATCH] Updating product:', id, 'for salon:', session.salonId);
+
+        let body;
+        try {
+            body = await request.json();
+        } catch (parseError) {
+            console.error('[Product PATCH] JSON parse error:', parseError);
+            return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+        }
+
+        console.log('[Product PATCH] Request body:', body);
+
         const { name, category, brand, type, unit, cost_price, selling_price, is_active, image_url } = body;
 
         const updates: Record<string, unknown> = {};
         if (name !== undefined) updates.name = name;
-        if (category !== undefined) updates.category = category;
-        if (brand !== undefined) updates.brand = brand;
+        if (category !== undefined) updates.category = category || null;
+        if (brand !== undefined) updates.brand = brand || null;
         if (type !== undefined) {
             if (!['service_use', 'retail_sale', 'both'].includes(type)) {
                 return NextResponse.json(
@@ -71,12 +83,32 @@ export async function PATCH(
             updates.type = type;
         }
         if (unit !== undefined) updates.unit = unit;
-        if (cost_price !== undefined) updates.cost_price = cost_price;
-        if (selling_price !== undefined) updates.selling_price = selling_price;
+        if (cost_price !== undefined) updates.cost_price = cost_price !== null && cost_price !== '' ? Number(cost_price) : null;
+        if (selling_price !== undefined) updates.selling_price = selling_price !== null && selling_price !== '' ? Number(selling_price) : null;
         if (is_active !== undefined) updates.is_active = is_active;
         if (image_url !== undefined) updates.image_url = image_url || null;
 
+        console.log('[Product PATCH] Updates to apply:', updates);
+
+        if (Object.keys(updates).length === 0) {
+            return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+        }
+
         const supabase = getSupabaseAdmin();
+
+        // First verify the product exists and belongs to this salon
+        const { data: existing, error: fetchError } = await supabase
+            .from('products')
+            .select('id')
+            .eq('id', id)
+            .eq('salon_id', session.salonId)
+            .single();
+
+        if (fetchError || !existing) {
+            console.error('[Product PATCH] Product not found:', fetchError);
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+        }
+
         const { data, error } = await supabase
             .from('products')
             .update(updates)
@@ -86,14 +118,26 @@ export async function PATCH(
             .single();
 
         if (error) {
-            console.error('Product PATCH error:', error);
-            return serverErrorResponse('Failed to update product');
+            console.error('[Product PATCH] Supabase error:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
+            return NextResponse.json({
+                error: error.message || 'Failed to update product',
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            }, { status: 500 });
         }
 
+        console.log('[Product PATCH] Successfully updated product:', data.id);
         return successResponse({ data, message: 'Product updated successfully' });
     } catch (error) {
-        console.error('Product PATCH error:', error);
-        return serverErrorResponse('Failed to update product');
+        console.error('[Product PATCH] Unexpected error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to update product';
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }
 

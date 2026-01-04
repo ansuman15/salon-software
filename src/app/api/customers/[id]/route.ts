@@ -119,7 +119,93 @@ export async function DELETE(
 
         console.log('[Customer DELETE] Found customer:', existing.name);
 
-        // Delete customer - include salon_id for RLS policies
+        // First, delete related records to avoid foreign key constraint violations
+        // Order matters: delete from child tables first, then parent
+
+        // 1. Get all bills for this customer to delete their payments first
+        const { data: customerBills } = await supabase
+            .from('bills')
+            .select('id')
+            .eq('customer_id', id);
+
+        if (customerBills && customerBills.length > 0) {
+            const billIds = customerBills.map(b => b.id);
+            console.log('[Customer DELETE] Deleting payments for', billIds.length, 'bills');
+
+            // Delete payments for these bills
+            const { error: paymentsError } = await supabase
+                .from('payments')
+                .delete()
+                .in('bill_id', billIds);
+
+            if (paymentsError) {
+                console.error('[Customer DELETE] Error deleting payments:', paymentsError);
+            }
+        }
+
+        // 2. Delete bills for this customer
+        const { error: billsError } = await supabase
+            .from('bills')
+            .delete()
+            .eq('customer_id', id);
+
+        if (billsError) {
+            console.error('[Customer DELETE] Error deleting bills:', billsError);
+            // Continue anyway - bills might not exist
+        }
+
+        // 3. Get all appointments for this customer to delete related services first
+        const { data: customerAppointments } = await supabase
+            .from('appointments')
+            .select('id')
+            .eq('customer_id', id);
+
+        if (customerAppointments && customerAppointments.length > 0) {
+            const appointmentIds = customerAppointments.map(a => a.id);
+            console.log('[Customer DELETE] Deleting appointment_services for', appointmentIds.length, 'appointments');
+
+            // Delete appointment_services for these appointments
+            const { error: appointmentServicesError } = await supabase
+                .from('appointment_services')
+                .delete()
+                .in('appointment_id', appointmentIds);
+
+            if (appointmentServicesError) {
+                console.error('[Customer DELETE] Error deleting appointment_services:', appointmentServicesError);
+            }
+        }
+
+        // 4. Delete appointments for this customer
+        const { error: appointmentsError } = await supabase
+            .from('appointments')
+            .delete()
+            .eq('customer_id', id);
+
+        if (appointmentsError) {
+            console.error('[Customer DELETE] Error deleting appointments:', appointmentsError);
+        }
+
+        // 5. Delete whatsapp_logs for this customer
+        const { error: whatsappError } = await supabase
+            .from('whatsapp_logs')
+            .delete()
+            .eq('customer_id', id);
+
+        if (whatsappError) {
+            console.error('[Customer DELETE] Error deleting whatsapp_logs:', whatsappError);
+        }
+
+        // 6. Delete customer_preferences (has onDelete: Cascade, but let's be explicit)
+        const { error: prefsError } = await supabase
+            .from('customer_preferences')
+            .delete()
+            .eq('customer_id', id);
+
+        if (prefsError) {
+            console.error('[Customer DELETE] Error deleting customer_preferences:', prefsError);
+        }
+
+        // Now delete the customer - all related records should be gone
         const { error: deleteError } = await supabase
             .from('customers')
             .delete()

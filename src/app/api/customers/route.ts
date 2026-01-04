@@ -167,7 +167,68 @@ export async function DELETE(request: NextRequest) {
 
         const supabase = getSupabaseAdmin();
 
-        // Single batch delete with IN clause - much faster than individual deletes
+        // First, delete related records to avoid foreign key constraint violations
+        // Order matters: delete from child tables first, then parent
+
+        // 1. Get all bills for these customers to delete their payments first
+        const { data: customerBills } = await supabase
+            .from('bills')
+            .select('id')
+            .in('customer_id', ids);
+
+        if (customerBills && customerBills.length > 0) {
+            const billIds = customerBills.map(b => b.id);
+            console.log('[Customers API] Deleting payments for', billIds.length, 'bills');
+
+            // Delete payments for these bills
+            await supabase
+                .from('payments')
+                .delete()
+                .in('bill_id', billIds);
+        }
+
+        // 2. Delete bills for these customers
+        await supabase
+            .from('bills')
+            .delete()
+            .in('customer_id', ids);
+
+        // 3. Get all appointments for these customers to delete related services first
+        const { data: customerAppointments } = await supabase
+            .from('appointments')
+            .select('id')
+            .in('customer_id', ids);
+
+        if (customerAppointments && customerAppointments.length > 0) {
+            const appointmentIds = customerAppointments.map(a => a.id);
+            console.log('[Customers API] Deleting appointment_services for', appointmentIds.length, 'appointments');
+
+            // Delete appointment_services for these appointments
+            await supabase
+                .from('appointment_services')
+                .delete()
+                .in('appointment_id', appointmentIds);
+        }
+
+        // 4. Delete appointments for these customers
+        await supabase
+            .from('appointments')
+            .delete()
+            .in('customer_id', ids);
+
+        // 5. Delete whatsapp_logs for these customers
+        await supabase
+            .from('whatsapp_logs')
+            .delete()
+            .in('customer_id', ids);
+
+        // 6. Delete customer_preferences
+        await supabase
+            .from('customer_preferences')
+            .delete()
+            .in('customer_id', ids);
+
+        // Now delete the customers - all related records should be gone
         const { error, count } = await supabase
             .from('customers')
             .delete({ count: 'exact' })
