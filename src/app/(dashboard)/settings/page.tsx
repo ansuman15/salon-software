@@ -270,7 +270,7 @@ export default function SettingsPage() {
                             <label>Salon Name</label>
                             <input
                                 type="text"
-                                value={session?.salon?.name || formData.name}
+                                value={formData.name}
                                 onChange={e => handleChange('name', e.target.value)}
                                 placeholder="Enter salon name"
                             />
