@@ -143,7 +143,7 @@ export async function PATCH(
 
 /**
  * DELETE /api/products/[id]
- * Permanently delete a product
+ * Permanently delete a product and all related records
  */
 export async function DELETE(
     request: NextRequest,
@@ -158,13 +158,50 @@ export async function DELETE(
         const { id } = await params;
         const supabase = getSupabaseAdmin();
 
-        // Delete inventory records first (foreign key constraint)
-        await supabase
+        console.log('[Product DELETE] Deleting product:', id, 'for salon:', session.salonId);
+
+        // Delete related records in order to handle foreign key constraints
+        // 1. Delete stock movements first
+        const { error: movementsError } = await supabase
+            .from('stock_movements')
+            .delete()
+            .eq('product_id', id);
+
+        if (movementsError) {
+            console.log('[Product DELETE] stock_movements delete (may not exist):', movementsError.message);
+        }
+
+        // 2. Delete billing_items (if table exists)
+        const { error: billingItemsError } = await supabase
+            .from('billing_items')
+            .delete()
+            .eq('product_id', id);
+
+        if (billingItemsError) {
+            console.log('[Product DELETE] billing_items delete (may not exist):', billingItemsError.message);
+        }
+
+        // 3. Set product_id to null in bill_items (preserve billing history)
+        const { error: billItemsError } = await supabase
+            .from('bill_items')
+            .update({ product_id: null })
+            .eq('product_id', id);
+
+        if (billItemsError) {
+            console.log('[Product DELETE] bill_items update (may not exist):', billItemsError.message);
+        }
+
+        // 4. Delete inventory records
+        const { error: inventoryError } = await supabase
             .from('inventory')
             .delete()
             .eq('product_id', id);
 
-        // Permanent delete product
+        if (inventoryError) {
+            console.log('[Product DELETE] inventory delete error:', inventoryError.message);
+        }
+
+        // 5. Finally, delete the product
         const { error } = await supabase
             .from('products')
             .delete()
@@ -172,13 +209,18 @@ export async function DELETE(
             .eq('salon_id', session.salonId);
 
         if (error) {
-            console.error('Product DELETE error:', error);
-            return serverErrorResponse('Failed to delete product');
+            console.error('[Product DELETE] Product delete error:', error);
+            return NextResponse.json({
+                error: error.message || 'Failed to delete product',
+                hint: error.hint,
+                details: error.details
+            }, { status: 500 });
         }
 
+        console.log('[Product DELETE] Successfully deleted product:', id);
         return successResponse({ deleted: true, message: 'Product deleted permanently' });
     } catch (error) {
-        console.error('Product DELETE error:', error);
+        console.error('[Product DELETE] Unexpected error:', error);
         return serverErrorResponse('Failed to delete product');
     }
 }
