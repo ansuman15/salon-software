@@ -364,6 +364,12 @@ export default function BillingPage() {
             return;
         }
 
+        // Validate customer selection
+        if (!selectedCustomer) {
+            toast.error('Please select a customer before completing the bill');
+            return;
+        }
+
         // Validate biller selection
         if (!selectedBiller) {
             toast.error('Please select a biller/cashier');
