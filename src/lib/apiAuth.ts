@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export interface SessionData {
-    salonId: string;
+    salonId: string;  // Keep camelCase in interface for backward compat
     email: string;
     isAdmin: boolean;
 }
@@ -25,7 +25,11 @@ export interface ApiResponse<T = unknown> {
 export async function verifySession(): Promise<SessionData | null> {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
+        // Try salon_session first (new format), fallback to salonx_session (old format)
+        let sessionCookie = cookieStore.get('salon_session');
+        if (!sessionCookie?.value) {
+            sessionCookie = cookieStore.get('salonx_session');
+        }
 
         if (!sessionCookie?.value) {
             return null;
@@ -33,13 +37,15 @@ export async function verifySession(): Promise<SessionData | null> {
 
         const session = JSON.parse(sessionCookie.value);
 
-        // Validate session structure
-        if (!session.salonId || session.salonId === 'admin') {
+        // Support both salon_id (new) and salonId (old) formats
+        const salonId = session.salon_id || session.salonId;
+
+        if (!salonId || salonId === 'admin') {
             return null;
         }
 
         return {
-            salonId: session.salonId,
+            salonId: salonId, // Return as salonId for backward compat
             email: session.email || '',
             isAdmin: session.isAdmin || false,
         };

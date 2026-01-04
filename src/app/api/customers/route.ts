@@ -1,5 +1,5 @@
 /**
- * Customers API - Bulk Import to Supabase
+ * Customers API - Bulk Import and Delete
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,28 +8,37 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+// Helper to get session
+async function getSession() {
+    const cookieStore = await cookies();
+    let sessionCookie = cookieStore.get('salon_session');
+    if (!sessionCookie) {
+        sessionCookie = cookieStore.get('salonx_session'); // Fallback
+    }
+    if (!sessionCookie) return null;
+
+    try {
+        const session = JSON.parse(sessionCookie.value);
+        const salonId = session.salon_id || session.salonId;
+        return salonId && salonId !== 'admin' ? { salonId } : null;
+    } catch {
+        return null;
+    }
+}
+
 // GET - Fetch all customers for the salon
 export async function GET(request: NextRequest) {
     try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
-
-        if (!sessionCookie) {
+        const session = await getSession();
+        if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-        }
-
-        const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salonId;
-
-        if (!salonId || salonId === 'admin') {
-            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
 
         const supabase = getSupabaseAdmin();
         const { data: customers, error } = await supabase
             .from('customers')
             .select('*')
-            .eq('salon_id', salonId)
+            .eq('salon_id', session.salonId)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -61,18 +70,9 @@ export async function GET(request: NextRequest) {
 // POST - Create customers (supports bulk import)
 export async function POST(request: NextRequest) {
     try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
-
-        if (!sessionCookie) {
+        const session = await getSession();
+        if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-        }
-
-        const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salonId;
-
-        if (!salonId || salonId === 'admin') {
-            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
 
         const body = await request.json();
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
         // Prepare customers for insert
         const customersData = customersToImport.map(c => ({
-            salon_id: salonId,
+            salon_id: session.salonId,
             name: c.name?.trim() || 'Unknown',
             phone: c.phone?.trim() || '',
             email: c.email?.trim() || null,
@@ -147,3 +147,49 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
+
+// DELETE - Bulk delete customers (fast batch delete)
+export async function DELETE(request: NextRequest) {
+    try {
+        const session = await getSession();
+        if (!session?.salonId) {
+            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const { ids } = body;
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return NextResponse.json({ error: 'No customer IDs provided' }, { status: 400 });
+        }
+
+        console.log(`[Customers API] Bulk deleting ${ids.length} customers`);
+
+        const supabase = getSupabaseAdmin();
+
+        // Single batch delete with IN clause - much faster than individual deletes
+        const { error, count } = await supabase
+            .from('customers')
+            .delete({ count: 'exact' })
+            .eq('salon_id', session.salonId)
+            .in('id', ids);
+
+        if (error) {
+            console.error('[Customers API] Bulk delete error:', error);
+            return NextResponse.json({ error: 'Failed to delete customers' }, { status: 500 });
+        }
+
+        console.log(`[Customers API] Successfully deleted ${count} customers`);
+
+        return NextResponse.json({
+            success: true,
+            deleted: count,
+            message: `${count} customer(s) deleted successfully`
+        });
+
+    } catch (error) {
+        console.error('[Customers API] Delete error:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+}
+
