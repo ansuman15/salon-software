@@ -98,7 +98,14 @@ export async function PATCH(request: NextRequest) {
 
         if (error) {
             console.error('[Salon API] Update error:', error);
-            return serverErrorResponse('Failed to update salon');
+            console.error('[Salon API] Error details:', JSON.stringify(error, null, 2));
+            return NextResponse.json({
+                success: false,
+                error: error.message || 'Failed to update salon',
+                hint: error.hint,
+                details: error.details,
+                code: error.code
+            }, { status: 500 });
         }
 
         console.log('[Salon API] Update successful. Salon data:', salon);
