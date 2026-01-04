@@ -100,6 +100,18 @@ export async function GET() {
             });
         }
 
+        // Debug: Check what data we got
+        console.log('[Performance API] Bills count:', bills.length);
+        console.log('[Performance API] Bill items count:', (billItems || []).length);
+        console.log('[Performance API] Bill items with staff_id:',
+            (billItems || []).filter((i: BillItemRow) => i.staff_id).length);
+        console.log('[Performance API] Sample items:', JSON.stringify(
+            (billItems || []).slice(0, 3).map((i: BillItemRow) => ({
+                service_id: i.service_id,
+                staff_id: i.staff_id,
+                service_name: i.service_name
+            })), null, 2));
+
         // Fetch staff data
         const { data: staffData } = await supabase
             .from('staff')

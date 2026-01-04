@@ -136,12 +136,19 @@ export async function POST(request: NextRequest) {
             total_price: (item.quantity || 1) * item.unit_price,
         }));
 
+        console.log('[Billing] Inserting bill_items:', JSON.stringify(billItems.map(i => ({
+            service_name: i.service_name,
+            staff_id: i.staff_id,
+            service_id: i.service_id
+        })), null, 2));
+
         const { error: itemsError } = await supabase
             .from('bill_items')
             .insert(billItems);
 
         if (itemsError) {
             console.error('[Billing] Bill items insert error:', itemsError);
+            console.error('[Billing] Error details:', JSON.stringify(itemsError, null, 2));
             // Bill was created, items failed - log but don't fail the whole transaction
         }
 
