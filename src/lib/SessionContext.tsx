@@ -10,6 +10,8 @@ export interface SessionSalon {
     phone?: string;
     city?: string;
     logo_url?: string;
+    gst_percentage?: number;
+    gst_number?: string;
 }
 
 export interface SessionData {

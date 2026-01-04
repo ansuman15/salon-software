@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         const supabase = getSupabaseAdmin();
         const { data: salon } = await supabase
             .from('salons')
-            .select('id, name, owner_email, phone, city, logo_url, status')
+            .select('id, name, owner_email, phone, city, logo_url, status, gst_percentage, gst_number')
             .eq('id', salonId)
             .single();
 
@@ -74,6 +74,8 @@ export async function GET(request: NextRequest) {
                 phone: salon.phone || '',
                 city: salon.city || '',
                 logo_url: salon.logo_url || null,
+                gst_percentage: salon.gst_percentage || 0,
+                gst_number: salon.gst_number || '',
             },
         });
 

@@ -37,6 +37,7 @@ export default function SettingsPage() {
                 name: session.salon?.name || '',
                 phone: session.salon?.phone || '',
                 city: session.salon?.city || '',
+                gstPercentage: session.salon?.gst_percentage || 18,
             }));
             // Set logo preview if exists
             if (session.salon?.logo_url) {
