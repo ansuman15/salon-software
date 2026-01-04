@@ -113,7 +113,7 @@ export async function PATCH(
                 // Generate new key
                 const plainKey = generateActivationKey();
                 const keyHash = await hashActivationKey(plainKey);
-                const expiresAt = getKeyExpiryDate(72);
+                const expiresAt = getKeyExpiryDate(365); // 365 days
 
                 await supabase.from('activation_keys').insert({
                     salon_id: id,

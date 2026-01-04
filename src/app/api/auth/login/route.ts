@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
 
         // 7. Create session cookie
         const sessionData = {
-            salonId: salon.id,
+            salon_id: salon.id,
             email: trimmedEmail,
             name: salon.name,
             loginTime: now,
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         };
 
         const cookieStore = await cookies();
-        cookieStore.set('salonx_session', JSON.stringify(sessionData), {
+        cookieStore.set('salon_session', JSON.stringify(sessionData), {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',

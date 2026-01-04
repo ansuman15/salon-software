@@ -61,11 +61,11 @@ export function isValidKeyFormat(key: string): boolean {
 
 /**
  * Calculate key expiry date
- * @param hours - Number of hours until expiry (default 72)
+ * @param days - Number of days until expiry (default 365)
  */
-export function getKeyExpiryDate(hours: number = 72): Date {
+export function getKeyExpiryDate(days: number = 365): Date {
     const expiry = new Date();
-    expiry.setHours(expiry.getHours() + hours);
+    expiry.setDate(expiry.getDate() + days);
     return expiry;
 }
 

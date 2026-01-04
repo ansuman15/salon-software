@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         // Generate activation key
         const plainKey = generateActivationKey();
         const keyHash = await hashActivationKey(plainKey);
-        const expiresAt = getKeyExpiryDate(72); // 72 hours
+        const expiresAt = getKeyExpiryDate(365); // 365 days
 
         // Store hashed key
         const { error: keyError } = await supabase
