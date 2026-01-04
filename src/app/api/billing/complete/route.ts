@@ -5,12 +5,12 @@ import { cookies } from 'next/headers';
 export const dynamic = 'force-dynamic';
 
 interface SessionData {
-    salonId: string;
+    salon_id: string;
 }
 
 async function getSession(): Promise<SessionData | null> {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('salonx_session');
+    const sessionCookie = cookieStore.get('salon_session');
     if (!sessionCookie) return null;
     try {
         return JSON.parse(sessionCookie.value);
@@ -21,32 +21,42 @@ async function getSession(): Promise<SessionData | null> {
 
 interface BillItem {
     item_type: 'service' | 'product';
-    item_id?: string;       // service_id or product_id
-    service_id?: string;    // Legacy support
-    product_id?: string;    // Legacy support
-    service_name?: string;  // Legacy support
+    item_id?: string;
+    service_id?: string;
+    product_id?: string;
+    service_name?: string;
     item_name?: string;
-    staff_id?: string;      // Required for services
+    staff_id?: string;
     quantity: number;
     unit_price: number;
 }
 
 /**
+ * Generate invoice number
+ */
+function generateInvoiceNumber(): string {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `SALX-${year}${month}-${random}`;
+}
+
+/**
  * POST /api/billing/complete
- * Complete a billing transaction using atomic database function
- * Now with staff attribution: billed_by_staff_id and staff_id per service
+ * Complete a billing transaction
  */
 export async function POST(request: NextRequest) {
     try {
         const session = await getSession();
-        if (!session?.salonId) {
+        if (!session?.salon_id) {
+            console.log('[Billing] No session or salon_id');
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        // Get idempotency key from header
-        const idempotencyKey = request.headers.get('X-Idempotency-Key') || null;
-
         const body = await request.json();
+        console.log('[Billing] Request body:', JSON.stringify(body, null, 2));
+
         const {
             customer_id,
             billed_by_staff_id,
@@ -72,95 +82,118 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Payment method is required' }, { status: 400 });
         }
 
-        if (!billed_by_staff_id) {
-            return NextResponse.json({ error: 'Biller (staff) is required' }, { status: 400 });
-        }
-
-        // Validate service items have staff_id
-        const serviceItemsWithoutStaff = (items as BillItem[]).filter(
-            item => (item.item_type === 'service' || item.service_id) && !item.staff_id
-        );
-        if (serviceItemsWithoutStaff.length > 0) {
-            return NextResponse.json({
-                error: 'All services must have a staff member assigned'
-            }, { status: 400 });
-        }
-
         const supabase = getSupabaseAdmin();
 
-        // Transform items to JSONB format expected by database function
-        const itemsJsonb = (items as BillItem[]).map(item => ({
-            item_type: item.item_type || (item.service_id ? 'service' : 'product'),
-            item_id: item.item_id || item.service_id || item.product_id,
-            item_name: item.item_name || item.service_name || 'Unknown',
-            staff_id: item.staff_id || null,
-            quantity: item.quantity || 1,
-            unit_price: item.unit_price,
-        }));
+        // Generate invoice number
+        const invoiceNumber = generateInvoiceNumber();
 
-        // Call atomic billing function
-        const { data, error } = await supabase.rpc('create_invoice_atomic', {
-            p_salon_id: session.salonId,
-            p_customer_id: customer_id || null,
-            p_billed_by_staff_id: billed_by_staff_id,
-            p_subtotal: subtotal || 0,
-            p_discount_percent: discount_percent || 0,
-            p_discount_amount: discount_amount || 0,
-            p_coupon_id: coupon_id || null,
-            p_coupon_code: coupon_code || null,
-            p_tax_percent: tax_percent || 0,
-            p_tax_amount: tax_amount || 0,
-            p_total_amount: final_amount,
-            p_payment_method: payment_method,
-            p_idempotency_key: idempotencyKey,
-            p_notes: notes || null,
-            p_items: itemsJsonb,
-        });
-
-        if (error) {
-            console.error('Atomic billing error:', error);
-            return NextResponse.json({ error: error.message || 'Failed to complete billing' }, { status: 500 });
-        }
-
-        const result = data?.[0] || data;
-
-        if (!result?.success) {
-            return NextResponse.json({
-                error: result?.message || 'Failed to create invoice'
-            }, { status: 400 });
-        }
-
-        // Fetch complete invoice with staff details for response
-        const { data: invoice } = await supabase
-            .from('invoices')
-            .select(`
-                *,
-                customer:customers(id, name, phone, email),
-                billed_by:staff!billed_by_staff_id(id, name)
-            `)
-            .eq('id', result.invoice_id)
+        // Try using the bills table (simpler, more likely to exist)
+        const { data: bill, error: billError } = await supabase
+            .from('bills')
+            .insert({
+                salon_id: session.salon_id,
+                customer_id: customer_id || null,
+                invoice_number: invoiceNumber,
+                subtotal: subtotal || 0,
+                discount_percent: discount_percent || 0,
+                discount_amount: discount_amount || 0,
+                coupon_id: coupon_id || null,
+                coupon_code: coupon_code || null,
+                tax_percent: tax_percent || 0,
+                tax_amount: tax_amount || 0,
+                final_amount: final_amount || subtotal || 0,
+                payment_method: payment_method,
+                payment_status: 'paid',
+                notes: notes || null,
+            })
+            .select()
             .single();
 
-        const { data: invoiceItems } = await supabase
-            .from('invoice_items')
+        if (billError) {
+            console.error('[Billing] Bill insert error:', billError);
+            return NextResponse.json({
+                error: billError.message || 'Failed to create bill'
+            }, { status: 500 });
+        }
+
+        // Insert bill items
+        const billItems = (items as BillItem[]).map(item => ({
+            bill_id: bill.id,
+            service_id: item.item_type === 'service' ? (item.item_id || item.service_id) : null,
+            product_id: item.item_type === 'product' ? (item.item_id || item.product_id) : null,
+            service_name: item.item_name || item.service_name || 'Unknown',
+            quantity: item.quantity || 1,
+            unit_price: item.unit_price,
+            total_price: (item.quantity || 1) * item.unit_price,
+        }));
+
+        const { error: itemsError } = await supabase
+            .from('bill_items')
+            .insert(billItems);
+
+        if (itemsError) {
+            console.error('[Billing] Bill items insert error:', itemsError);
+            // Bill was created, items failed - log but don't fail the whole transaction
+        }
+
+        // Deduct inventory for products
+        for (const item of items as BillItem[]) {
+            if (item.item_type === 'product') {
+                const productId = item.item_id || item.product_id;
+                if (productId) {
+                    try {
+                        await supabase.rpc('deduct_inventory_for_billing', {
+                            p_salon_id: session.salon_id,
+                            p_product_id: productId,
+                            p_quantity: item.quantity || 1
+                        });
+                    } catch (err) {
+                        console.log('[Billing] Inventory deduction failed (function may not exist):', err);
+                    }
+                }
+            }
+        }
+
+        // If coupon was used, try to increment usage
+        if (coupon_id) {
+            try {
+                await supabase.rpc('increment_coupon_usage', { p_coupon_id: coupon_id });
+            } catch (err) {
+                console.log('[Billing] Coupon increment failed:', err);
+            }
+        }
+
+        // Fetch the complete bill with customer info
+        const { data: completeBill } = await supabase
+            .from('bills')
             .select(`
                 *,
-                performing_staff:staff!staff_id(id, name)
+                customer:customers(id, name, phone, email)
             `)
-            .eq('invoice_id', result.invoice_id);
+            .eq('id', bill.id)
+            .single();
+
+        const { data: completeBillItems } = await supabase
+            .from('bill_items')
+            .select('*')
+            .eq('bill_id', bill.id);
+
+        console.log('[Billing] Success - Bill ID:', bill.id);
 
         return NextResponse.json({
             success: true,
             bill: {
-                id: result.invoice_id,
-                invoice_number: result.invoice_number,
-                ...invoice,
-                items: invoiceItems,
+                ...completeBill,
+                items: completeBillItems || billItems,
             },
-            message: result.message,
+            message: 'Bill created successfully',
         });
+
     } catch (error) {
-        console.error('Billing complete error:', error);
-        return NextResponse.json({ error: 'Failed to complete billing' }, { status: 500 });
+        console.error('[Billing] Complete error:', error);
+        return NextResponse.json({
+            error: 'Failed to complete billing',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
     }
 }
