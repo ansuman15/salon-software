@@ -1362,12 +1362,24 @@
         display: flex;
     }
 
+    /* Hero Section */
+    .hero {
+        padding-top: 100px;
+        padding-bottom: 60px;
+    }
+
     .heroTitle {
-        font-size: 2.25rem;
+        font-size: 2rem;
+        line-height: 1.2;
+    }
+
+    .heroSubtitle {
+        font-size: 1rem;
     }
 
     .heroCta {
         flex-direction: column;
+        gap: 1rem;
     }
 
     .primaryBtn,
@@ -1375,43 +1387,177 @@
         width: 100%;
         text-align: center;
         justify-content: center;
+        padding: 1rem 1.5rem;
+        min-height: 52px;
     }
 
+    /* Sections */
+    .section {
+        padding: 3rem 1rem;
+    }
+
+    .sectionHeader h2 {
+        font-size: 1.75rem;
+    }
+
+    .sectionHeader p {
+        font-size: 0.95rem;
+    }
+
+    /* Grids */
     .problemsGrid {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
 
     .featuresGrid {
         grid-template-columns: 1fr;
+        gap: 1.5rem;
     }
 
+    /* Pricing - Stack on mobile */
+    .pricingGrid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        max-width: 400px;
+        margin: 0 auto 2rem;
+    }
+
+    .pricingCard {
+        padding: 1.5rem;
+    }
+
+    .priceBig {
+        font-size: 2.5rem;
+    }
+
+    /* Stats */
+    .statsSection {
+        padding: 2rem 1rem;
+    }
+
+    .statsContent {
+        gap: 1.5rem;
+    }
+
+    .statNumber {
+        font-size: 2rem;
+    }
+
+    .statLabel {
+        font-size: 0.85rem;
+    }
+
+    /* Testimonials */
+    .testimonialsGrid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .testimonialCard {
+        min-height: auto;
+        padding: 1.5rem;
+    }
+
+    .testimonialQuote {
+        font-size: 0.95rem;
+    }
+
+    /* Comparison Table */
+    .comparisonSection {
+        padding: 2rem 0.5rem;
+    }
+
+    .comparisonTable {
+        font-size: 0.8rem;
+    }
+
+    .comparisonHeader,
+    .comparisonRow {
+        grid-template-columns: 1.2fr 1fr 1fr;
+    }
+
+    .comparisonHeader>div,
+    .comparisonRow>div {
+        padding: 0.5rem;
+    }
+
+    .comparisonFeature {
+        font-size: 0.75rem;
+    }
+
+    /* FAQ */
+    .faqGrid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .faqItem {
+        padding: 1.25rem;
+    }
+
+    .faqQuestion {
+        font-size: 0.95rem;
+    }
+
+    .faqAnswer {
+        font-size: 0.875rem;
+    }
+
+    /* Footer */
     .footerLinks {
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }
 
+    .footer {
+        padding: 2rem 1rem;
+    }
+
+    /* Final CTA */
     .finalCta {
-        margin: 0 1rem 1rem;
+        margin: 0 0.5rem 1rem;
+        padding: 2rem 1.5rem;
+        border-radius: 1.5rem;
     }
 
     .finalCta h2 {
+        font-size: 1.5rem;
+    }
+
+    .finalCta p {
+        font-size: 0.9rem;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .nav {
+        padding: 0.75rem 1rem;
+    }
+
+    .logoText {
+        font-size: 1.25rem;
+    }
+
+    .heroTitle {
         font-size: 1.75rem;
     }
 
-    .testimonialsGrid {
-        grid-template-columns: 1fr;
+    .section {
+        padding: 2.5rem 0.75rem;
     }
 
-    .testimonialCard {
-        min-height: auto;
+    .sectionHeader h2 {
+        font-size: 1.5rem;
     }
 
     .comparisonHeader,
     .comparisonRow {
-        grid-template-columns: 1.5fr 1fr 1fr;
+        grid-template-columns: 1fr 0.8fr 0.8fr;
     }
 
     .comparisonFeature {
-        font-size: 0.85rem;
+        font-size: 0.7rem;
     }
 }
