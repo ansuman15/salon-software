@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { getApiSession } from '@/lib/sessionHelper';
 
 export const dynamic = 'force-dynamic';
-
-interface SessionData {
-    salonId: string;
-}
-
-async function getSession(): Promise<SessionData | null> {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('salonx_session');
-    if (!sessionCookie) return null;
-    try {
-        return JSON.parse(sessionCookie.value);
-    } catch {
-        return null;
-    }
-}
 
 /**
  * POST /api/inventory/adjust
@@ -25,7 +10,7 @@ async function getSession(): Promise<SessionData | null> {
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getSession();
+        const session = await getApiSession();
         if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
@@ -52,7 +37,7 @@ export async function POST(request: NextRequest) {
             p_product_id: product_id,
             p_quantity_change: quantity_change,
             p_reason: reason,
-            p_performed_by: null, // Could add user ID if available
+            p_performed_by: null,
         });
 
         if (error) throw error;

@@ -3,33 +3,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { getApiSession } from '@/lib/sessionHelper';
 
 export const dynamic = 'force-dynamic';
-
-// Helper to verify session
-async function verifySession() {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('salonx_session');
-
-    if (!sessionCookie) {
-        return null;
-    }
-
-    try {
-        const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salonId;
-
-        if (!salonId || salonId === 'admin') {
-            return null;
-        }
-
-        return { salonId };
-    } catch {
-        return null;
-    }
-}
 
 // PATCH - Update a customer
 export async function PATCH(
@@ -37,8 +14,8 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await verifySession();
-        if (!session) {
+        const session = await getApiSession();
+        if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
@@ -111,8 +88,8 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await verifySession();
-        if (!session) {
+        const session = await getApiSession();
+        if (!session?.salonId) {
             console.error('[Customer DELETE] No session found');
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }

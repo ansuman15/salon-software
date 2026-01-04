@@ -3,33 +3,24 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { getApiSession } from '@/lib/sessionHelper';
 
 export const dynamic = 'force-dynamic';
 
 // GET - Fetch all appointments for the salon
 export async function GET(request: NextRequest) {
     try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
-
-        if (!sessionCookie) {
+        const session = await getApiSession();
+        if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-        }
-
-        const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salonId;
-
-        if (!salonId || salonId === 'admin') {
-            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
 
         const supabase = getSupabaseAdmin();
         const { data: appointments, error } = await supabase
             .from('appointments')
             .select('*')
-            .eq('salon_id', salonId)
+            .eq('salon_id', session.salonId)
             .order('appointment_date', { ascending: false });
 
         if (error) {
@@ -63,18 +54,9 @@ export async function GET(request: NextRequest) {
 // POST - Create a new appointment
 export async function POST(request: NextRequest) {
     try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
-
-        if (!sessionCookie) {
+        const session = await getApiSession();
+        if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-        }
-
-        const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salonId;
-
-        if (!salonId || salonId === 'admin') {
-            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
 
         const body = await request.json();
@@ -92,7 +74,7 @@ export async function POST(request: NextRequest) {
             const { data: newCustomer, error: customerError } = await supabase
                 .from('customers')
                 .insert({
-                    salon_id: salonId,
+                    salon_id: session.salonId,
                     name: customerName,
                     phone: customerPhone,
                     tags: ['New'],
@@ -116,7 +98,7 @@ export async function POST(request: NextRequest) {
         const { data: appointment, error } = await supabase
             .from('appointments')
             .insert({
-                salon_id: salonId,
+                salon_id: session.salonId,
                 customer_id: finalCustomerId,
                 staff_id: staffId,
                 appointment_date: appointmentDate,
@@ -165,18 +147,9 @@ export async function POST(request: NextRequest) {
 // PUT - Update an appointment
 export async function PUT(request: NextRequest) {
     try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
-
-        if (!sessionCookie) {
+        const session = await getApiSession();
+        if (!session?.salonId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-        }
-
-        const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salonId;
-
-        if (!salonId || salonId === 'admin') {
-            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
 
         const body = await request.json();
@@ -202,7 +175,7 @@ export async function PUT(request: NextRequest) {
             .from('appointments')
             .update(updateData)
             .eq('id', id)
-            .eq('salon_id', salonId)
+            .eq('salon_id', session.salonId)
             .select()
             .single();
 

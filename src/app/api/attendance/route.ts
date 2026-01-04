@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { getApiSession } from '@/lib/sessionHelper';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,28 +20,6 @@ interface AttendanceRecord {
     notes?: string | null;
 }
 
-interface SessionData {
-    salonId: string;
-    email?: string;
-    isAdmin?: boolean;
-}
-
-/**
- * Get session from cookie
- */
-async function getSession(): Promise<SessionData | null> {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('salonx_session');
-
-    if (!sessionCookie) return null;
-
-    try {
-        return JSON.parse(sessionCookie.value);
-    } catch {
-        return null;
-    }
-}
-
 /**
  * GET /api/attendance?date=YYYY-MM-DD
  * Fetch attendance records for a specific date
@@ -53,7 +31,7 @@ export async function GET(request: NextRequest) {
         const staffId = searchParams.get('staff_id');
         const month = searchParams.get('month'); // YYYY-MM format for monthly view
 
-        const session = await getSession();
+        const session = await getApiSession();
         if (!session?.salonId) {
             return NextResponse.json(
                 { error: 'Not authenticated' },
@@ -170,7 +148,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const session = await getSession();
+        const session = await getApiSession();
         if (!session?.salonId) {
             return NextResponse.json(
                 { error: 'Not authenticated' },
