@@ -10,10 +10,17 @@ interface SessionData {
 
 async function getSession(): Promise<SessionData | null> {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('salonx_session');
-    if (!sessionCookie) return null;
+    // Try salon_session first (new format), fallback to salonx_session (old format)
+    let sessionCookie = cookieStore.get('salon_session');
+    if (!sessionCookie?.value) {
+        sessionCookie = cookieStore.get('salonx_session');
+    }
+    if (!sessionCookie?.value) return null;
     try {
-        return JSON.parse(sessionCookie.value);
+        const session = JSON.parse(sessionCookie.value);
+        const salonId = session.salon_id || session.salonId;
+        if (!salonId || salonId === 'admin') return null;
+        return { salonId };
     } catch {
         return null;
     }

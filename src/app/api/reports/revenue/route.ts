@@ -12,14 +12,19 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
+        // Try salon_session first (new format), fallback to salonx_session (old format)
+        let sessionCookie = cookieStore.get('salon_session');
+        if (!sessionCookie?.value) {
+            sessionCookie = cookieStore.get('salonx_session');
+        }
 
-        if (!sessionCookie) {
+        if (!sessionCookie?.value) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
         const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salonId;
+        // Support both salon_id (new) and salonId (old) formats
+        const salonId = session.salon_id || session.salonId;
 
         if (!salonId || salonId === 'admin') {
             return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
