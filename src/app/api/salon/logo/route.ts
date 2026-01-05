@@ -11,18 +11,22 @@ const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 
 export async function POST(request: NextRequest) {
     try {
-        // Get session from cookie
+        // Get session from cookie - check both formats
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salon_session');
+        let sessionCookie = cookieStore.get('salon_session');
+        if (!sessionCookie?.value) {
+            sessionCookie = cookieStore.get('salonx_session');
+        }
 
         if (!sessionCookie?.value) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salon?.id;
+        // Support both salon_id (new) and salonId (old) formats
+        const salonId = session.salon_id || session.salonId;
 
-        if (!salonId) {
+        if (!salonId || salonId === 'admin') {
             return NextResponse.json({ error: 'Salon not found' }, { status: 400 });
         }
 
@@ -100,18 +104,22 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE() {
     try {
-        // Get session from cookie
+        // Get session from cookie - check both formats
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('salonx_session');
+        let sessionCookie = cookieStore.get('salon_session');
+        if (!sessionCookie?.value) {
+            sessionCookie = cookieStore.get('salonx_session');
+        }
 
         if (!sessionCookie?.value) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const session = JSON.parse(sessionCookie.value);
-        const salonId = session.salon?.id;
+        // Support both salon_id (new) and salonId (old) formats
+        const salonId = session.salon_id || session.salonId;
 
-        if (!salonId) {
+        if (!salonId || salonId === 'admin') {
             return NextResponse.json({ error: 'Salon not found' }, { status: 400 });
         }
 
