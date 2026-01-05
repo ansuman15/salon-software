@@ -155,36 +155,39 @@ export default function BillingPage() {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            // Fetch customers
-            const customersRes = await fetch('/api/customers');
+            // Fetch all data in parallel for faster loading
+            const [customersRes, servicesRes, staffRes, inventoryRes, salonRes] = await Promise.all([
+                fetch('/api/customers'),
+                fetch('/api/services'),
+                fetch('/api/staff'),
+                fetch('/api/inventory'),
+                fetch('/api/salon'),
+            ]);
+
+            // Process customers
             if (customersRes.ok) {
                 const data = await customersRes.json();
                 setCustomers(data.customers || []);
             }
 
-            // Fetch services  
-            const servicesRes = await fetch('/api/services');
+            // Process services
             if (servicesRes.ok) {
                 const data = await servicesRes.json();
-                // Filter only active services
                 const activeServices = (data.services || []).filter((s: Service) => s.isActive !== false);
                 setServices(activeServices);
             }
 
-            // Fetch staff for biller and service attribution
-            const staffRes = await fetch('/api/staff');
+            // Process staff
             if (staffRes.ok) {
                 const data = await staffRes.json();
                 const activeStaff = (data.staff || []).filter((s: Staff) => s.isActive);
                 setStaffList(activeStaff);
             }
 
-            // Fetch products with inventory stock
-            const inventoryRes = await fetch('/api/inventory');
+            // Process inventory/products
             if (inventoryRes.ok) {
                 const data = await inventoryRes.json();
                 const inventoryItems = data.data || [];
-                // Transform inventory to products with stock
                 const productsWithStock: Product[] = inventoryItems
                     .filter((item: { product: { is_active?: boolean } }) => item.product?.is_active !== false)
                     .map((item: {
@@ -202,12 +205,10 @@ export default function BillingPage() {
                 setProducts(productsWithStock);
             }
 
-            // Fetch salon settings using session
-            const salonRes = await fetch('/api/salon');
+            // Process salon settings
             if (salonRes.ok) {
                 const data = await salonRes.json();
                 if (data.salon) {
-                    // Combine address and city for full location display
                     const fullAddress = [data.salon.address, data.salon.city]
                         .filter(Boolean)
                         .join(', ');
