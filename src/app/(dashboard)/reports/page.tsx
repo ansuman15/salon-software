@@ -1,290 +1,484 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import dynamic from 'next/dynamic';
 import Header from "@/components/layout/Header";
 import { useMultiRealtimeSync } from "@/hooks/useRealtimeSync";
 import styles from "./page.module.css";
 
-interface Customer {
-    id: string;
+// Dynamic import for Recharts (client-side only)
+const LineChart = dynamic(() => import('recharts').then(mod => mod.LineChart), { ssr: false });
+const Line = dynamic(() => import('recharts').then(mod => mod.Line), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then(mod => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then(mod => mod.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false });
+const BarChart = dynamic(() => import('recharts').then(mod => mod.BarChart), { ssr: false });
+const Bar = dynamic(() => import('recharts').then(mod => mod.Bar), { ssr: false });
+
+interface ChartData {
+    date?: string;
+    month?: string;
+    revenue: number;
+    bills: number;
+}
+
+interface StaffPerformance {
     name: string;
-    createdAt: string;
+    services: number;
+    revenue: number;
 }
 
-interface Appointment {
+interface Bill {
     id: string;
-    staffId: string;
-    serviceIds: string[];
-    status: string;
+    invoice_number: string;
+    created_at: string;
+    final_amount: number;
+    payment_method: string;
+    items_count: number;
+    customer?: { name: string; phone?: string };
 }
 
-interface Service {
-    id: string;
+interface TopService {
     name: string;
-    price: number;
-}
-
-interface Staff {
-    id: string;
-    name: string;
-}
-
-interface ReportData {
-    todayRevenue: number;
-    weekRevenue: number;
-    monthRevenue: number;
-    totalCustomers: number;
-    newCustomersThisMonth: number;
-    totalAppointments: number;
-    completedAppointments: number;
-    cancelledAppointments: number;
-    topServices: { name: string; count: number; revenue: number }[];
-    staffPerformance: { name: string; appointments: number; revenue: number }[];
+    count: number;
+    revenue: number;
 }
 
 export default function ReportsPage() {
     const [isLoading, setIsLoading] = useState(true);
-    const [data, setData] = useState<ReportData>({
-        todayRevenue: 0,
-        weekRevenue: 0,
-        monthRevenue: 0,
-        totalCustomers: 0,
-        newCustomersThisMonth: 0,
-        totalAppointments: 0,
-        completedAppointments: 0,
-        cancelledAppointments: 0,
-        topServices: [],
-        staffPerformance: [],
-    });
+    const [activeTab, setActiveTab] = useState<'overview' | 'bills' | 'staff'>('overview');
+    const [chartPeriod, setChartPeriod] = useState<'daily' | 'monthly'>('daily');
+    const [isDownloading, setIsDownloading] = useState(false);
 
-    const loadReports = useCallback(async () => {
+    // Revenue data
+    const [todayRevenue, setTodayRevenue] = useState(0);
+    const [weekRevenue, setWeekRevenue] = useState(0);
+    const [monthRevenue, setMonthRevenue] = useState(0);
+
+    // Chart data
+    const [chartData, setChartData] = useState<ChartData[]>([]);
+    const [chartLoading, setChartLoading] = useState(false);
+
+    // Staff performance
+    const [staffPerformance, setStaffPerformance] = useState<StaffPerformance[]>([]);
+    const [topServices, setTopServices] = useState<TopService[]>([]);
+
+    // Bills history
+    const [bills, setBills] = useState<Bill[]>([]);
+    const [billsPage, setBillsPage] = useState(1);
+    const [billsTotal, setBillsTotal] = useState(0);
+    const [billsSearch, setBillsSearch] = useState('');
+    const [billsLoading, setBillsLoading] = useState(false);
+
+    // Load revenue summary
+    const loadRevenue = useCallback(async () => {
         try {
-            // Fetch all data in parallel
-            const [customersRes, appointmentsRes, servicesRes, staffRes, revenueRes, performanceRes] = await Promise.all([
-                fetch('/api/customers'),
-                fetch('/api/appointments'),
-                fetch('/api/services'),
-                fetch('/api/staff'),
-                fetch('/api/reports/revenue').catch(() => null),
-                fetch('/api/reports/performance').catch(() => null),
-            ]);
-
-            let customers: Customer[] = [];
-            let appointments: Appointment[] = [];
-            let services: Service[] = [];
-            let staff: Staff[] = [];
-
-            if (customersRes.ok) {
-                const d = await customersRes.json();
-                customers = d.customers || [];
+            const res = await fetch('/api/reports/revenue');
+            if (res.ok) {
+                const data = await res.json();
+                setTodayRevenue(data.today || 0);
+                setWeekRevenue(data.week || 0);
+                setMonthRevenue(data.month || 0);
             }
-            if (appointmentsRes.ok) {
-                const d = await appointmentsRes.json();
-                appointments = d.appointments || [];
-            }
-            if (servicesRes.ok) {
-                const d = await servicesRes.json();
-                services = d.services || [];
-            }
-            if (staffRes.ok) {
-                const d = await staffRes.json();
-                staff = d.staff || [];
-            }
-
-            // Get revenue from API
-            let todayRevenue = 0, weekRevenue = 0, monthRevenue = 0;
-            if (revenueRes && revenueRes.ok) {
-                const revenueData = await revenueRes.json();
-                todayRevenue = revenueData.today || 0;
-                weekRevenue = revenueData.week || 0;
-                monthRevenue = revenueData.month || 0;
-            }
-
-            // Get performance data from billing (preferred) or fallback to appointments
-            let topServices: { name: string; count: number; revenue: number }[] = [];
-            let staffPerformance: { name: string; appointments: number; revenue: number }[] = [];
-
-            if (performanceRes && performanceRes.ok) {
-                const perfData = await performanceRes.json();
-                topServices = perfData.topServices || [];
-                // Map services from billing to match expected format
-                staffPerformance = (perfData.staffPerformance || []).map((s: { name: string; services: number; revenue: number }) => ({
-                    name: s.name,
-                    appointments: s.services, // services performed = billing items
-                    revenue: s.revenue,
-                }));
-            }
-
-            // Fallback: If no billing data, calculate from appointments
-            if (topServices.length === 0 && appointments.length > 0) {
-                const serviceCount: Record<string, { count: number; revenue: number }> = {};
-                appointments.forEach(apt => {
-                    apt.serviceIds.forEach(id => {
-                        if (!serviceCount[id]) serviceCount[id] = { count: 0, revenue: 0 };
-                        serviceCount[id].count++;
-                        const service = services.find(s => s.id === id);
-                        if (service) serviceCount[id].revenue += service.price;
-                    });
-                });
-
-                topServices = Object.entries(serviceCount)
-                    .map(([id, data]) => ({
-                        name: services.find(s => s.id === id)?.name || 'Unknown',
-                        count: data.count,
-                        revenue: data.revenue,
-                    }))
-                    .sort((a, b) => b.count - a.count)
-                    .slice(0, 5);
-            }
-
-            if (staffPerformance.length === 0 && appointments.length > 0) {
-                const staffStats: Record<string, { appointments: number; revenue: number }> = {};
-                appointments.forEach(apt => {
-                    if (!staffStats[apt.staffId]) staffStats[apt.staffId] = { appointments: 0, revenue: 0 };
-                    staffStats[apt.staffId].appointments++;
-                });
-
-                staffPerformance = Object.entries(staffStats)
-                    .map(([id, stats]) => ({
-                        name: staff.find(s => s.id === id)?.name || 'Unknown',
-                        appointments: stats.appointments,
-                        revenue: stats.revenue,
-                    }))
-                    .sort((a, b) => b.appointments - a.appointments)
-                    .slice(0, 5);
-            }
-
-            // Calculate new customers this month
-            const monthAgo = new Date();
-            monthAgo.setDate(monthAgo.getDate() - 30);
-            const newCustomersThisMonth = customers.filter(c => new Date(c.createdAt) >= monthAgo).length;
-
-            setData({
-                todayRevenue,
-                weekRevenue,
-                monthRevenue,
-                totalCustomers: customers.length,
-                newCustomersThisMonth,
-                totalAppointments: appointments.length,
-                completedAppointments: appointments.filter(a => a.status === 'completed').length,
-                cancelledAppointments: appointments.filter(a => a.status === 'cancelled').length,
-                topServices,
-                staffPerformance,
-            });
-
         } catch (error) {
-            console.error('Failed to load reports:', error);
-        } finally {
-            setIsLoading(false);
+            console.error('Failed to load revenue:', error);
         }
     }, []);
 
-    useEffect(() => {
-        loadReports();
-    }, [loadReports]);
+    // Load chart data
+    const loadChart = useCallback(async () => {
+        setChartLoading(true);
+        try {
+            const res = await fetch(`/api/reports/chart?period=${chartPeriod}&days=30`);
+            if (res.ok) {
+                const data = await res.json();
+                setChartData(data.data || []);
+            }
+        } catch (error) {
+            console.error('Failed to load chart:', error);
+        } finally {
+            setChartLoading(false);
+        }
+    }, [chartPeriod]);
 
-    // Realtime sync - auto-refresh when data changes
+    // Load performance data
+    const loadPerformance = useCallback(async () => {
+        try {
+            const res = await fetch('/api/reports/performance');
+            if (res.ok) {
+                const data = await res.json();
+                setStaffPerformance(data.staffPerformance || []);
+                setTopServices(data.topServices || []);
+            }
+        } catch (error) {
+            console.error('Failed to load performance:', error);
+        }
+    }, []);
+
+    // Load bills history
+    const loadBills = useCallback(async (page = 1, search = '') => {
+        setBillsLoading(true);
+        try {
+            let url = `/api/reports/bills?page=${page}&limit=10`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                setBills(data.bills || []);
+                setBillsTotal(data.total || 0);
+                setBillsPage(page);
+            }
+        } catch (error) {
+            console.error('Failed to load bills:', error);
+        } finally {
+            setBillsLoading(false);
+        }
+    }, []);
+
+    // Initial load
+    useEffect(() => {
+        const loadAll = async () => {
+            setIsLoading(true);
+            await Promise.all([loadRevenue(), loadChart(), loadPerformance(), loadBills()]);
+            setIsLoading(false);
+        };
+        loadAll();
+    }, [loadRevenue, loadChart, loadPerformance, loadBills]);
+
+    // Reload chart when period changes
+    useEffect(() => {
+        loadChart();
+    }, [chartPeriod, loadChart]);
+
+    // Realtime sync
     useMultiRealtimeSync(
-        ['customers', 'appointments', 'services', 'staff', 'bills'],
-        loadReports,
+        ['bills', 'staff'],
+        () => {
+            loadRevenue();
+            loadPerformance();
+            if (activeTab === 'bills') loadBills(billsPage, billsSearch);
+        },
         true
     );
+
+    // Download report
+    const handleDownload = async (period: 'week' | 'month') => {
+        setIsDownloading(true);
+        try {
+            const res = await fetch(`/api/reports/download?period=${period}`);
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Report_${period}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            }
+        } catch (error) {
+            console.error('Download failed:', error);
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
     const formatCurrency = (amount: number) => {
         if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
         if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
-        return `₹${amount.toLocaleString()}`;
+        return `₹${amount.toLocaleString('en-IN')}`;
+    };
+
+    const formatDate = (dateStr: string) => {
+        return new Date(dateStr).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        });
+    };
+
+    const formatChartLabel = (item: ChartData) => {
+        if (item.date) {
+            const d = new Date(item.date);
+            return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+        }
+        if (item.month) {
+            const [year, month] = item.month.split('-');
+            return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-IN', { month: 'short' });
+        }
+        return '';
     };
 
     if (isLoading) {
-        return <div className={styles.loading}><div className={styles.spinner}></div></div>;
+        return (
+            <>
+                <Header title="Reports & Analytics" subtitle="Business insights" />
+                <div className={styles.loading}><div className={styles.spinner}></div></div>
+            </>
+        );
     }
 
     return (
         <>
-            <Header title="Reports & Insights" subtitle="Your salon performance overview" />
+            <Header title="Reports & Analytics" subtitle="Business insights" />
 
             <div className={styles.container}>
-                {/* Revenue Cards */}
-                <div className={styles.revenueGrid}>
-                    <div className={styles.revenueCard}>
-                        <span className={styles.revenueLabel}>Today's Revenue</span>
-                        <span className={styles.revenueValue}>{formatCurrency(data.todayRevenue)}</span>
+                {/* Top Actions */}
+                <div className={styles.topBar}>
+                    <div className={styles.tabs}>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'overview' ? styles.active : ''}`}
+                            onClick={() => setActiveTab('overview')}
+                        >
+                            📊 Overview
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'bills' ? styles.active : ''}`}
+                            onClick={() => { setActiveTab('bills'); loadBills(); }}
+                        >
+                            🧾 Bills History
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'staff' ? styles.active : ''}`}
+                            onClick={() => setActiveTab('staff')}
+                        >
+                            👥 Staff Performance
+                        </button>
                     </div>
-                    <div className={styles.revenueCard}>
-                        <span className={styles.revenueLabel}>This Week</span>
-                        <span className={styles.revenueValue}>{formatCurrency(data.weekRevenue)}</span>
-                    </div>
-                    <div className={styles.revenueCard}>
-                        <span className={styles.revenueLabel}>This Month</span>
-                        <span className={styles.revenueValue}>{formatCurrency(data.monthRevenue)}</span>
+                    <div className={styles.downloadBtns}>
+                        <button
+                            className={styles.downloadBtn}
+                            onClick={() => handleDownload('week')}
+                            disabled={isDownloading}
+                        >
+                            📥 Weekly Report
+                        </button>
+                        <button
+                            className={styles.downloadBtn}
+                            onClick={() => handleDownload('month')}
+                            disabled={isDownloading}
+                        >
+                            📥 Monthly Report
+                        </button>
                     </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className={styles.statsGrid}>
-                    <div className={styles.statCard}>
-                        <span className={styles.statValue}>{data.totalCustomers}</span>
-                        <span className={styles.statLabel}>Total Customers</span>
-                    </div>
-                    <div className={styles.statCard}>
-                        <span className={styles.statValue}>+{data.newCustomersThisMonth}</span>
-                        <span className={styles.statLabel}>New This Month</span>
-                    </div>
-                    <div className={styles.statCard}>
-                        <span className={styles.statValue}>{data.completedAppointments}</span>
-                        <span className={styles.statLabel}>Completed Appointments</span>
-                    </div>
-                    <div className={styles.statCard}>
-                        <span className={styles.statValue}>{data.cancelledAppointments}</span>
-                        <span className={styles.statLabel}>Cancelled</span>
-                    </div>
-                </div>
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                    <>
+                        {/* Revenue Cards */}
+                        <div className={styles.revenueCards}>
+                            <div className={`${styles.revenueCard} ${styles.today}`}>
+                                <div className={styles.cardIcon}>📅</div>
+                                <div className={styles.cardInfo}>
+                                    <span className={styles.cardLabel}>Today's Revenue</span>
+                                    <span className={styles.cardValue}>{formatCurrency(todayRevenue)}</span>
+                                </div>
+                            </div>
+                            <div className={`${styles.revenueCard} ${styles.week}`}>
+                                <div className={styles.cardIcon}>📆</div>
+                                <div className={styles.cardInfo}>
+                                    <span className={styles.cardLabel}>This Week</span>
+                                    <span className={styles.cardValue}>{formatCurrency(weekRevenue)}</span>
+                                </div>
+                            </div>
+                            <div className={`${styles.revenueCard} ${styles.month}`}>
+                                <div className={styles.cardIcon}>🗓️</div>
+                                <div className={styles.cardInfo}>
+                                    <span className={styles.cardLabel}>This Month</span>
+                                    <span className={styles.cardValue}>{formatCurrency(monthRevenue)}</span>
+                                </div>
+                            </div>
+                        </div>
 
-                {/* Charts Row */}
-                <div className={styles.chartsRow}>
-                    {/* Top Services */}
-                    <div className={styles.chartCard}>
-                        <h3>Top Services</h3>
-                        {data.topServices.length === 0 ? (
-                            <p className={styles.emptyChart}>No data yet</p>
-                        ) : (
-                            <div className={styles.chartList}>
-                                {data.topServices.map((service, idx) => (
-                                    <div key={idx} className={styles.chartItem}>
-                                        <div className={styles.chartRank}>{idx + 1}</div>
-                                        <div className={styles.chartInfo}>
-                                            <span className={styles.chartName}>{service.name}</span>
-                                            <span className={styles.chartMeta}>{service.count} bookings</span>
+                        {/* Revenue Chart */}
+                        <div className={styles.chartSection}>
+                            <div className={styles.chartHeader}>
+                                <h3>Revenue Trend</h3>
+                                <div className={styles.chartToggle}>
+                                    <button
+                                        className={chartPeriod === 'daily' ? styles.active : ''}
+                                        onClick={() => setChartPeriod('daily')}
+                                    >
+                                        Daily
+                                    </button>
+                                    <button
+                                        className={chartPeriod === 'monthly' ? styles.active : ''}
+                                        onClick={() => setChartPeriod('monthly')}
+                                    >
+                                        Monthly
+                                    </button>
+                                </div>
+                            </div>
+                            <div className={styles.chartContainer}>
+                                {chartLoading ? (
+                                    <div className={styles.chartLoading}>Loading chart...</div>
+                                ) : chartData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                            <XAxis
+                                                dataKey={chartPeriod === 'daily' ? 'date' : 'month'}
+                                                tickFormatter={(val) => formatChartLabel({ [chartPeriod === 'daily' ? 'date' : 'month']: val, revenue: 0, bills: 0 })}
+                                                tick={{ fontSize: 11 }}
+                                            />
+                                            <YAxis
+                                                tickFormatter={(val) => formatCurrency(val)}
+                                                tick={{ fontSize: 11 }}
+                                            />
+                                            <Tooltip
+                                                formatter={(value) => [`₹${Number(value).toLocaleString('en-IN')}`, 'Revenue']}
+                                                labelFormatter={(label) => formatChartLabel({ [chartPeriod === 'daily' ? 'date' : 'month']: label as string, revenue: 0, bills: 0 })}
+                                            />
+                                            <Bar dataKey="revenue" fill="#4F46E5" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className={styles.noData}>No revenue data available</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Top Services */}
+                        <div className={styles.section}>
+                            <h3>🔥 Top Services</h3>
+                            {topServices.length > 0 ? (
+                                <div className={styles.topServicesList}>
+                                    {topServices.slice(0, 5).map((service, idx) => (
+                                        <div key={idx} className={styles.topServiceItem}>
+                                            <span className={styles.rank}>#{idx + 1}</span>
+                                            <span className={styles.serviceName}>{service.name}</span>
+                                            <span className={styles.serviceCount}>{service.count} times</span>
+                                            <span className={styles.serviceRevenue}>{formatCurrency(service.revenue)}</span>
                                         </div>
-                                        <span className={styles.chartValue}>{formatCurrency(service.revenue)}</span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className={styles.noData}>No service data yet</p>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {/* Bills History Tab */}
+                {activeTab === 'bills' && (
+                    <div className={styles.billsSection}>
+                        <div className={styles.billsHeader}>
+                            <input
+                                type="text"
+                                placeholder="Search by invoice number..."
+                                value={billsSearch}
+                                onChange={(e) => setBillsSearch(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && loadBills(1, billsSearch)}
+                                className={styles.searchInput}
+                            />
+                            <button
+                                className={styles.searchBtn}
+                                onClick={() => loadBills(1, billsSearch)}
+                            >
+                                🔍 Search
+                            </button>
+                        </div>
+
+                        {billsLoading ? (
+                            <div className={styles.loading}><div className={styles.spinner}></div></div>
+                        ) : bills.length > 0 ? (
+                            <>
+                                <table className={styles.billsTable}>
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice #</th>
+                                            <th>Customer</th>
+                                            <th>Date</th>
+                                            <th>Items</th>
+                                            <th>Amount</th>
+                                            <th>Payment</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {bills.map(bill => (
+                                            <tr key={bill.id}>
+                                                <td className={styles.invoiceNum}>{bill.invoice_number}</td>
+                                                <td>{bill.customer?.name || 'Walk-in'}</td>
+                                                <td>{formatDate(bill.created_at)}</td>
+                                                <td>{bill.items_count}</td>
+                                                <td className={styles.amount}>₹{bill.final_amount.toLocaleString('en-IN')}</td>
+                                                <td>
+                                                    <span className={`${styles.paymentBadge} ${styles[bill.payment_method]}`}>
+                                                        {bill.payment_method.toUpperCase()}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                                <div className={styles.pagination}>
+                                    <span>Showing {bills.length} of {billsTotal} bills</span>
+                                    <div className={styles.pageButtons}>
+                                        <button
+                                            disabled={billsPage <= 1}
+                                            onClick={() => loadBills(billsPage - 1, billsSearch)}
+                                        >
+                                            ← Previous
+                                        </button>
+                                        <span>Page {billsPage}</span>
+                                        <button
+                                            disabled={bills.length < 10}
+                                            onClick={() => loadBills(billsPage + 1, billsSearch)}
+                                        >
+                                            Next →
+                                        </button>
                                     </div>
-                                ))}
+                                </div>
+                            </>
+                        ) : (
+                            <div className={styles.emptyState}>
+                                <p>No bills found</p>
                             </div>
                         )}
                     </div>
+                )}
 
-                    {/* Staff Performance */}
-                    <div className={styles.chartCard}>
-                        <h3>Staff Performance</h3>
-                        {data.staffPerformance.length === 0 ? (
-                            <p className={styles.emptyChart}>No data yet</p>
+                {/* Staff Performance Tab */}
+                {activeTab === 'staff' && (
+                    <div className={styles.staffSection}>
+                        <h3>👥 Staff Performance</h3>
+                        {staffPerformance.length > 0 ? (
+                            <table className={styles.staffTable}>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Staff Name</th>
+                                        <th>Services Done</th>
+                                        <th>Revenue Generated</th>
+                                        <th>Avg per Service</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {staffPerformance.map((staff, idx) => (
+                                        <tr key={idx}>
+                                            <td className={styles.rank}>#{idx + 1}</td>
+                                            <td className={styles.staffName}>{staff.name}</td>
+                                            <td>{staff.services}</td>
+                                            <td className={styles.revenue}>{formatCurrency(staff.revenue)}</td>
+                                            <td>{staff.services > 0 ? formatCurrency(staff.revenue / staff.services) : '-'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         ) : (
-                            <div className={styles.chartList}>
-                                {data.staffPerformance.map((staffMember, idx) => (
-                                    <div key={idx} className={styles.chartItem}>
-                                        <div className={styles.chartRank}>{idx + 1}</div>
-                                        <div className={styles.chartInfo}>
-                                            <span className={styles.chartName}>{staffMember.name}</span>
-                                            <span className={styles.chartMeta}>{staffMember.appointments} appointments</span>
-                                        </div>
-                                        <span className={styles.chartValue}>{formatCurrency(staffMember.revenue)}</span>
-                                    </div>
-                                ))}
+                            <div className={styles.emptyState}>
+                                <p>No staff performance data yet</p>
+                                <span>Complete some bills to see staff metrics</span>
                             </div>
                         )}
                     </div>
-                </div>
+                )}
             </div>
         </>
     );
