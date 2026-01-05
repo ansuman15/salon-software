@@ -335,11 +335,12 @@ export default function AttendancePage() {
         }
     };
 
-    // Export Excel handler
-    const handleExport = async () => {
+    // Export handler - supports both Excel and PDF
+    const handleExport = async (format: 'excel' | 'pdf' = 'excel') => {
         setIsExporting(true);
         try {
-            let url = '/api/attendance/export?';
+            const basePath = format === 'pdf' ? '/api/attendance/export/pdf?' : '/api/attendance/export?';
+            let url = basePath;
 
             if (exportType === 'date') {
                 url += `date=${getDateStr(selectedDate)}`;
@@ -362,14 +363,14 @@ export default function AttendancePage() {
             const downloadUrl = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = downloadUrl;
-            a.download = `Attendance_Export.xlsx`;
+            a.download = format === 'pdf' ? `Attendance_Export.pdf` : `Attendance_Export.xlsx`;
             document.body.appendChild(a);
             a.click();
             a.remove();
             window.URL.revokeObjectURL(downloadUrl);
 
             setShowExportModal(false);
-            setSuccessMessage('Export downloaded successfully!');
+            setSuccessMessage(`${format.toUpperCase()} export downloaded successfully!`);
         } catch (err) {
             console.error('Export error:', err);
             setError('Failed to export attendance');
@@ -722,10 +723,18 @@ export default function AttendancePage() {
                             </button>
                             <button
                                 className={styles.confirmBtn}
-                                onClick={handleExport}
+                                onClick={() => handleExport('pdf')}
+                                disabled={isExporting || (exportType === 'range' && (!exportFrom || !exportTo))}
+                                style={{ background: '#DC2626' }}
+                            >
+                                {isExporting ? 'Exporting...' : '📄 Download PDF'}
+                            </button>
+                            <button
+                                className={styles.confirmBtn}
+                                onClick={() => handleExport('excel')}
                                 disabled={isExporting || (exportType === 'range' && (!exportFrom || !exportTo))}
                             >
-                                {isExporting ? 'Exporting...' : 'Download Excel'}
+                                {isExporting ? 'Exporting...' : '📊 Download Excel'}
                             </button>
                         </div>
                     </div>
