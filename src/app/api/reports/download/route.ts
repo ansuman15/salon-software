@@ -57,47 +57,51 @@ export async function GET(request: NextRequest) {
             .gte('created_at', startDate.toISOString())
             .order('created_at', { ascending: false });
 
-        // Fetch staff performance
-        const { data: billItems } = await supabase
-            .from('bill_items')
-            .select(`
-                total_price,
-                staff_id,
-                bill:bill_id (created_at, salon_id)
-            `)
-            .gte('created_at', startDate.toISOString());
+        // Fetch staff performance - get bill_items linked to bills from this salon in the period
+        // First get bill IDs from this period
+        const billIds = (bills || []).map(b => b.id);
 
-        // Filter items by salon and aggregate staff performance
-        const staffStats: Record<string, { services: number; revenue: number }> = {};
-        (billItems || []).forEach(item => {
-            const bill = Array.isArray(item.bill) ? item.bill[0] : item.bill;
-            if (bill?.salon_id === session.salonId && item.staff_id) {
-                if (!staffStats[item.staff_id]) {
-                    staffStats[item.staff_id] = { services: 0, revenue: 0 };
-                }
-                staffStats[item.staff_id].services += 1;
-                staffStats[item.staff_id].revenue += item.total_price || 0;
-            }
-        });
-
-        // Get staff names
-        const staffIds = Object.keys(staffStats);
         let staffPerformance: { name: string; services: number; revenue: number }[] = [];
 
-        if (staffIds.length > 0) {
-            const { data: staffMembers } = await supabase
-                .from('staff')
-                .select('id, name')
-                .in('id', staffIds);
+        if (billIds.length > 0) {
+            const { data: billItems, error: itemsError } = await supabase
+                .from('bill_items')
+                .select('total_price, staff_id')
+                .in('bill_id', billIds);
 
-            staffPerformance = staffIds.map(id => {
-                const staff = staffMembers?.find(s => s.id === id);
-                return {
-                    name: staff?.name || 'Unknown',
-                    services: staffStats[id].services,
-                    revenue: staffStats[id].revenue,
-                };
-            }).sort((a, b) => b.revenue - a.revenue);
+            if (itemsError) {
+                console.error('[Report Download] Bill items error:', itemsError);
+            }
+
+            // Aggregate staff performance
+            const staffStats: Record<string, { services: number; revenue: number }> = {};
+            (billItems || []).forEach(item => {
+                if (item.staff_id) {
+                    if (!staffStats[item.staff_id]) {
+                        staffStats[item.staff_id] = { services: 0, revenue: 0 };
+                    }
+                    staffStats[item.staff_id].services += 1;
+                    staffStats[item.staff_id].revenue += item.total_price || 0;
+                }
+            });
+
+            // Get staff names
+            const staffIds = Object.keys(staffStats);
+            if (staffIds.length > 0) {
+                const { data: staffMembers } = await supabase
+                    .from('staff')
+                    .select('id, name')
+                    .in('id', staffIds);
+
+                staffPerformance = staffIds.map(id => {
+                    const staff = staffMembers?.find(s => s.id === id);
+                    return {
+                        name: staff?.name || 'Unknown',
+                        services: staffStats[id].services,
+                        revenue: staffStats[id].revenue,
+                    };
+                }).sort((a, b) => b.revenue - a.revenue);
+            }
         }
 
         // Calculate totals
