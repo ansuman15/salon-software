@@ -12,6 +12,13 @@ export interface SessionSalon {
     logo_url?: string;
     gst_percentage?: number;
     gst_number?: string;
+    working_days?: number[];
+    opening_time?: string;
+    closing_time?: string;
+    currency?: string;
+    invoice_prefix?: string;
+    whatsapp_enabled?: boolean;
+    whatsapp_number?: string;
 }
 
 export interface SessionData {

@@ -38,6 +38,13 @@ export default function SettingsPage() {
                 phone: session.salon?.phone || '',
                 city: session.salon?.city || '',
                 gstPercentage: session.salon?.gst_percentage || 18,
+                workingDays: session.salon?.working_days || [1, 2, 3, 4, 5, 6],
+                openingTime: session.salon?.opening_time || '09:00',
+                closingTime: session.salon?.closing_time || '21:00',
+                currency: session.salon?.currency || 'INR',
+                invoicePrefix: session.salon?.invoice_prefix || 'INV',
+                whatsappEnabled: session.salon?.whatsapp_enabled || false,
+                whatsappNumber: session.salon?.whatsapp_number || '',
             }));
             // Set logo preview if exists
             if (session.salon?.logo_url) {
@@ -179,6 +186,13 @@ export default function SettingsPage() {
                     phone: formData.phone,
                     city: formData.city,
                     gst_percentage: formData.gstPercentage,
+                    working_days: formData.workingDays,
+                    opening_time: formData.openingTime,
+                    closing_time: formData.closingTime,
+                    currency: formData.currency,
+                    invoice_prefix: formData.invoicePrefix,
+                    whatsapp_enabled: formData.whatsappEnabled,
+                    whatsapp_number: formData.whatsappNumber,
                 }),
             });
 

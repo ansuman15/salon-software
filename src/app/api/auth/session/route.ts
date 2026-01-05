@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         const supabase = getSupabaseAdmin();
         const { data: salon } = await supabase
             .from('salons')
-            .select('id, name, owner_email, phone, city, logo_url, status, gst_percentage, gst_number')
+            .select('id, name, owner_email, phone, city, logo_url, status, gst_percentage, gst_number, working_days, opening_time, closing_time, currency, invoice_prefix, whatsapp_enabled, whatsapp_number')
             .eq('id', salonId)
             .single();
 
@@ -76,6 +76,13 @@ export async function GET(request: NextRequest) {
                 logo_url: salon.logo_url || null,
                 gst_percentage: salon.gst_percentage || 0,
                 gst_number: salon.gst_number || '',
+                working_days: salon.working_days || [1, 2, 3, 4, 5, 6],
+                opening_time: salon.opening_time || '09:00',
+                closing_time: salon.closing_time || '21:00',
+                currency: salon.currency || 'INR',
+                invoice_prefix: salon.invoice_prefix || 'INV',
+                whatsapp_enabled: salon.whatsapp_enabled || false,
+                whatsapp_number: salon.whatsapp_number || '',
             },
         });
 

@@ -66,10 +66,20 @@ export async function PATCH(request: NextRequest) {
         const body = await request.json();
         console.log('[Salon API] Request body:', body);
 
-        const { name, phone, city, address, gst_number, gst_percentage } = body;
+        const {
+            name, phone, city, address, gst_number, gst_percentage,
+            working_days, opening_time, closing_time, currency,
+            invoice_prefix, whatsapp_enabled, whatsapp_number
+        } = body;
 
         // At least one field should be provided
-        if (!name && !phone && !city && !address && gst_number === undefined && gst_percentage === undefined) {
+        const hasAnyField = name !== undefined || phone !== undefined || city !== undefined ||
+            address !== undefined || gst_number !== undefined || gst_percentage !== undefined ||
+            working_days !== undefined || opening_time !== undefined || closing_time !== undefined ||
+            currency !== undefined || invoice_prefix !== undefined || whatsapp_enabled !== undefined ||
+            whatsapp_number !== undefined;
+
+        if (!hasAnyField) {
             console.log('[Salon API] No fields to update');
             return badRequestResponse('No fields to update');
         }
@@ -84,6 +94,13 @@ export async function PATCH(request: NextRequest) {
         if (address !== undefined) updates.address = sanitizeString(address) || null;
         if (gst_number !== undefined) updates.gst_number = sanitizeString(gst_number) || null;
         if (gst_percentage !== undefined) updates.gst_percentage = Number(gst_percentage) || 0;
+        if (working_days !== undefined) updates.working_days = working_days;
+        if (opening_time !== undefined) updates.opening_time = sanitizeString(opening_time) || '09:00';
+        if (closing_time !== undefined) updates.closing_time = sanitizeString(closing_time) || '21:00';
+        if (currency !== undefined) updates.currency = sanitizeString(currency) || 'INR';
+        if (invoice_prefix !== undefined) updates.invoice_prefix = sanitizeString(invoice_prefix) || 'INV';
+        if (whatsapp_enabled !== undefined) updates.whatsapp_enabled = Boolean(whatsapp_enabled);
+        if (whatsapp_number !== undefined) updates.whatsapp_number = sanitizeString(whatsapp_number) || null;
 
         console.log('[Salon API] Updates to apply:', updates);
         console.log('[Salon API] Updating salon ID:', session.salonId);
