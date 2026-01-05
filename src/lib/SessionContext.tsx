@@ -9,6 +9,7 @@ export interface SessionSalon {
     email: string;
     phone?: string;
     city?: string;
+    address?: string;
     logo_url?: string;
     gst_percentage?: number;
     gst_number?: string;

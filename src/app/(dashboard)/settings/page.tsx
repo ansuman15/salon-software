@@ -19,6 +19,7 @@ export default function SettingsPage() {
         name: '',
         phone: '',
         city: '',
+        address: '',
         currency: 'INR',
         openingTime: '09:00',
         closingTime: '21:00',
@@ -37,6 +38,7 @@ export default function SettingsPage() {
                 name: session.salon?.name || '',
                 phone: session.salon?.phone || '',
                 city: session.salon?.city || '',
+                address: session.salon?.address || '',
                 gstPercentage: session.salon?.gst_percentage || 18,
                 workingDays: session.salon?.working_days || [1, 2, 3, 4, 5, 6],
                 openingTime: session.salon?.opening_time || '09:00',
@@ -185,6 +187,7 @@ export default function SettingsPage() {
                     name: formData.name,
                     phone: formData.phone,
                     city: formData.city,
+                    address: formData.address,
                     gst_percentage: formData.gstPercentage,
                     working_days: formData.workingDays,
                     opening_time: formData.openingTime,
@@ -306,6 +309,15 @@ export default function SettingsPage() {
                                 value={formData.city}
                                 onChange={e => handleChange('city', e.target.value)}
                                 placeholder="Enter city"
+                            />
+                        </div>
+                        <div className={styles.inputGroup} style={{ gridColumn: '1 / -1' }}>
+                            <label>Full Address</label>
+                            <input
+                                type="text"
+                                value={formData.address}
+                                onChange={e => handleChange('address', e.target.value)}
+                                placeholder="Street address, Building name, Area"
                             />
                         </div>
                         <div className={styles.inputGroup}>

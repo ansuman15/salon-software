@@ -207,9 +207,13 @@ export default function BillingPage() {
             if (salonRes.ok) {
                 const data = await salonRes.json();
                 if (data.salon) {
+                    // Combine address and city for full location display
+                    const fullAddress = [data.salon.address, data.salon.city]
+                        .filter(Boolean)
+                        .join(', ');
                     setSalonInfo({
                         name: data.salon.name || 'SalonX',
-                        address: data.salon.city || data.salon.address, // Use city as location
+                        address: fullAddress || '',
                         phone: data.salon.phone,
                         email: data.salon.email,
                         gst_number: data.salon.gst_number,

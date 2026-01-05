@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         const supabase = getSupabaseAdmin();
         const { data: salon } = await supabase
             .from('salons')
-            .select('id, name, owner_email, phone, city, logo_url, status, gst_percentage, gst_number, working_days, opening_time, closing_time, currency, invoice_prefix, whatsapp_enabled, whatsapp_number')
+            .select('id, name, owner_email, phone, city, address, logo_url, status, gst_percentage, gst_number, working_days, opening_time, closing_time, currency, invoice_prefix, whatsapp_enabled, whatsapp_number')
             .eq('id', salonId)
             .single();
 
@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
                 email: salon.owner_email,
                 phone: salon.phone || '',
                 city: salon.city || '',
+                address: salon.address || '',
                 logo_url: salon.logo_url || null,
                 gst_percentage: salon.gst_percentage || 0,
                 gst_number: salon.gst_number || '',
