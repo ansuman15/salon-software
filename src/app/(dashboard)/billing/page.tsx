@@ -209,7 +209,7 @@ export default function BillingPage() {
                 if (data.salon) {
                     setSalonInfo({
                         name: data.salon.name || 'SalonX',
-                        address: data.salon.address,
+                        address: data.salon.city || data.salon.address, // Use city as location
                         phone: data.salon.phone,
                         email: data.salon.email,
                         gst_number: data.salon.gst_number,
