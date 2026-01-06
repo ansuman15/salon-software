@@ -169,19 +169,41 @@ export default function ReportsPage() {
         setIsDownloading(true);
         try {
             const res = await fetch(`/api/reports/download?period=${period}`);
-            if (res.ok) {
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Report_${period}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
+
+            if (!res.ok) {
+                // Try to parse error message from response
+                const contentType = res.headers.get('content-type');
+                if (contentType?.includes('application/json')) {
+                    const errorData = await res.json();
+                    console.error('[Report Download] API Error:', errorData);
+                    alert(`Failed to generate report: ${errorData.error || 'Unknown error'}`);
+                } else {
+                    console.error('[Report Download] HTTP Error:', res.status, res.statusText);
+                    alert(`Failed to generate report: ${res.statusText || 'Server error'}`);
+                }
+                return;
             }
+
+            const blob = await res.blob();
+
+            // Verify we got a PDF
+            if (blob.type !== 'application/pdf' && blob.size < 100) {
+                console.error('[Report Download] Invalid response:', blob.type, blob.size);
+                alert('Failed to generate report: Invalid response from server');
+                return;
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Report_${period === 'week' ? 'Weekly' : 'Monthly'}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
         } catch (error) {
-            console.error('Download failed:', error);
+            console.error('[Report Download] Error:', error);
+            alert(`Download failed: ${error instanceof Error ? error.message : 'Network error'}`);
         } finally {
             setIsDownloading(false);
         }

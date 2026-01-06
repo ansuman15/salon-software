@@ -331,43 +331,25 @@ export default function CustomersPage() {
 
     const handleConfirmBulkDelete = async () => {
         setIsSaving(true);
-        let successCount = 0;
-        let failCount = 0;
 
         try {
-            // Delete each selected customer
             const idsToDelete = Array.from(selectedIds);
-            console.log('[Bulk Delete] Starting delete for', idsToDelete.length, 'customers');
+            console.log('[Bulk Delete] Starting bulk delete for', idsToDelete.length, 'customers');
 
-            for (let i = 0; i < idsToDelete.length; i++) {
-                const id = idsToDelete[i];
-                try {
-                    console.log('[Bulk Delete] Deleting customer:', id);
-                    const res = await fetch(`/api/customers/${id}`, {
-                        method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' },
-                    });
+            // Use the bulk delete API endpoint - single request instead of loop
+            const res = await fetch('/api/customers', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: idsToDelete }),
+            });
 
-                    if (res.ok) {
-                        successCount++;
-                        console.log('[Bulk Delete] Success for:', id);
-                    } else {
-                        const errorData = await res.json().catch(() => ({}));
-                        console.error('[Bulk Delete] Failed for:', id, 'Error:', errorData);
-                        toast.error(errorData.error || 'Delete failed');
-                        failCount++;
-                    }
-                } catch (err) {
-                    console.error('[Bulk Delete] Network error for:', id, err);
-                    failCount++;
-                }
-            }
+            const data = await res.json();
 
-            if (successCount > 0) {
-                toast.success(`Deleted ${successCount} customer${successCount > 1 ? 's' : ''} successfully`);
-            }
-            if (failCount > 0) {
-                toast.error(`Failed to delete ${failCount} customer${failCount > 1 ? 's' : ''}`);
+            if (res.ok && data.success) {
+                toast.success(`Deleted ${data.deleted} customer${data.deleted > 1 ? 's' : ''} successfully`);
+            } else {
+                console.error('[Bulk Delete] API error:', data);
+                toast.error(data.error || 'Failed to delete customers');
             }
 
             // Refresh and reset
