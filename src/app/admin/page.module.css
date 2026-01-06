@@ -489,3 +489,93 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* Delete Button */
+.deleteBtn {
+    background: var(--error-light) !important;
+    color: var(--error) !important;
+    border-color: var(--error) !important;
+}
+
+.deleteBtn:hover {
+    background: var(--error) !important;
+    color: white !important;
+}
+
+/* Delete Modal Styles */
+.deleteWarning {
+    color: var(--text-primary);
+    text-align: center;
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.deleteWarningDetails {
+    background: var(--error-light);
+    border: 1px solid var(--error);
+    border-radius: 10px;
+    padding: 1rem;
+    color: var(--error);
+    font-size: 0.9rem;
+    line-height: 1.8;
+    margin-bottom: 1rem;
+}
+
+.deleteConfirmText {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.deleteConfirmText code {
+    background: var(--bg-secondary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    color: var(--text-primary);
+}
+
+.deleteConfirmInput {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--error);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    text-align: center;
+}
+
+.deleteConfirmInput:focus {
+    outline: none;
+    border-color: var(--error);
+    box-shadow: 0 0 0 3px var(--error-light);
+}
+
+.deleteConfirmInput::placeholder {
+    color: var(--text-muted);
+}
+
+.deleteBtnConfirm {
+    flex: 2;
+    padding: 0.875rem;
+    background: var(--error);
+    border: none;
+    color: white;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.deleteBtnConfirm:hover:not(:disabled) {
+    background: #c53030;
+    transform: translateY(-1px);
+}
+
+.deleteBtnConfirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

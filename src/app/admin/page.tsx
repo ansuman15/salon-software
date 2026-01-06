@@ -52,6 +52,12 @@ export default function AdminPage() {
     const [error, setError] = useState('');
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+    // Delete modal state
+    const [deleteModal, setDeleteModal] = useState<{ salon: Salon | null; confirmName: string }>({
+        salon: null,
+        confirmName: '',
+    });
+
     useEffect(() => {
         checkAdminAccess();
     }, []);
@@ -217,6 +223,35 @@ export default function AdminPage() {
         return colors[status];
     };
 
+    const handleDeleteSalon = async () => {
+        if (!deleteModal.salon) return;
+        if (deleteModal.confirmName !== deleteModal.salon.name) {
+            alert('Salon name does not match. Please type the exact salon name.');
+            return;
+        }
+
+        setActionLoading(deleteModal.salon.id);
+        try {
+            const res = await fetch(`/api/admin/salons/${deleteModal.salon.id}`, {
+                method: 'DELETE',
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                alert(`✅ ${data.message}`);
+                setDeleteModal({ salon: null, confirmName: '' });
+                await loadSalons();
+            } else {
+                alert(`❌ ${data.error || 'Deletion failed'}`);
+            }
+        } catch {
+            alert('Network error. Please try again.');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className={styles.container}>
@@ -302,6 +337,13 @@ export default function AdminPage() {
                                                 disabled={actionLoading === salon.id}
                                             >
                                                 {salon.status === 'suspended' ? 'Reactivate' : 'Suspend'}
+                                            </button>
+                                            <button
+                                                className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                                                onClick={() => setDeleteModal({ salon, confirmName: '' })}
+                                                disabled={actionLoading === salon.id}
+                                            >
+                                                Delete
                                             </button>
                                         </div>
                                     </div>
@@ -479,6 +521,62 @@ export default function AdminPage() {
                                 </form>
                             </>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteModal.salon && (
+                <div className={styles.modalOverlay} onClick={() => setDeleteModal({ salon: null, confirmName: '' })}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <h2>⚠️ Permanent Deletion</h2>
+                        <p className={styles.deleteWarning}>
+                            You are about to <strong>permanently delete</strong> the salon
+                            <br />
+                            <strong>"{deleteModal.salon.name}"</strong>
+                        </p>
+                        <p className={styles.deleteWarningDetails}>
+                            This will delete ALL data including:
+                            <br />
+                            • All customers and their history
+                            <br />
+                            • All staff members
+                            <br />
+                            • All services and appointments
+                            <br />
+                            • All bills and payment records
+                            <br />
+                            • All activation keys
+                        </p>
+                        <p className={styles.deleteConfirmText}>
+                            <strong>This action CANNOT be undone.</strong>
+                            <br />
+                            Type <code>{deleteModal.salon.name}</code> to confirm:
+                        </p>
+                        <input
+                            type="text"
+                            className={styles.deleteConfirmInput}
+                            value={deleteModal.confirmName}
+                            onChange={e => setDeleteModal({ ...deleteModal, confirmName: e.target.value })}
+                            placeholder="Type salon name to confirm"
+                        />
+                        <div className={styles.modalActions}>
+                            <button
+                                type="button"
+                                className={styles.cancelBtn}
+                                onClick={() => setDeleteModal({ salon: null, confirmName: '' })}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.deleteBtnConfirm}
+                                onClick={handleDeleteSalon}
+                                disabled={deleteModal.confirmName !== deleteModal.salon.name || actionLoading === deleteModal.salon.id}
+                            >
+                                {actionLoading === deleteModal.salon.id ? 'Deleting...' : 'Delete Permanently'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -158,12 +158,12 @@ export async function PATCH(
     }
 }
 
-// DELETE - Remove salon entirely
+// DELETE - Permanently remove salon and ALL related data
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const { isAdmin } = await verifyAdmin();
+    const { isAdmin, email: adminEmail } = await verifyAdmin();
     if (!isAdmin) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -171,14 +171,50 @@ export async function DELETE(
     const { id } = await params;
     const supabase = getSupabaseAdmin();
 
-    const { error } = await supabase
-        .from('salons')
-        .delete()
-        .eq('id', id);
+    try {
+        // First, get salon info for logging and response
+        const { data: salon, error: fetchError } = await supabase
+            .from('salons')
+            .select('name, owner_email')
+            .eq('id', id)
+            .single();
 
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        if (fetchError || !salon) {
+            return NextResponse.json({ error: 'Salon not found' }, { status: 404 });
+        }
+
+        // Log the deletion action BEFORE deleting (for audit trail)
+        await supabase.from('admin_audit_logs').insert({
+            admin_id: '00000000-0000-0000-0000-000000000000',
+            action: 'SALON_PERMANENTLY_DELETED',
+            target_type: 'salon',
+            target_id: id,
+            metadata: {
+                admin_email: adminEmail,
+                deleted_salon_name: salon.name,
+                deleted_salon_email: salon.owner_email,
+                deleted_at: new Date().toISOString(),
+            },
+        });
+
+        // Delete the salon - CASCADE will handle all related data
+        const { error: deleteError } = await supabase
+            .from('salons')
+            .delete()
+            .eq('id', id);
+
+        if (deleteError) {
+            console.error('[Admin] Salon delete error:', deleteError);
+            return NextResponse.json({ error: deleteError.message }, { status: 500 });
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: `Salon "${salon.name}" and all related data permanently deleted`,
+            deletedSalon: salon.name,
+        });
+    } catch (error) {
+        console.error('[Admin] Salon delete error:', error);
+        return NextResponse.json({ error: 'Deletion failed' }, { status: 500 });
     }
-
-    return NextResponse.json({ success: true, message: 'Salon deleted' });
 }
