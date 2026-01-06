@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ADMIN_EMAILS } from "@/lib/config";
-import { db } from "@/lib/database";
 import styles from "./page.module.css";
 
 interface Salon {
@@ -58,21 +57,17 @@ export default function AdminPage() {
     }, []);
 
     const checkAdminAccess = async () => {
-        console.log('[Admin Page] Checking admin access...');
-
-        // Always check API session first (cookie-based, server-side)
+        // Only use cookie-based API session (no localStorage)
         try {
             const res = await fetch('/api/auth/session');
             if (res.ok) {
                 const data = await res.json();
-                console.log('[Admin Page] Session API response:', data);
 
-                // Check for admin access - either from salon email or direct admin session
+                // Check for admin access
                 const sessionEmail = data.email || data.salon?.email;
                 const isAdminSession = data.isAdmin === true;
 
                 if (data.authenticated && (isAdminSession || ADMIN_EMAILS.includes(sessionEmail))) {
-                    console.log('[Admin Page] Admin access granted via API session');
                     setIsAdmin(true);
                     await Promise.all([loadSalons(), loadLeads()]);
                     setIsLoading(false);
@@ -80,29 +75,10 @@ export default function AdminPage() {
                 }
             }
         } catch (e) {
-            console.error('[Admin Page] Session API error:', e);
+            console.error('[Admin Page] Session check failed:', e);
         }
 
-        // Fallback: check localStorage session (for backward compatibility)
-        const localSession = db.auth.getSession();
-        console.log('[Admin Page] Local session:', localSession);
-
-        if (localSession && ADMIN_EMAILS.includes(localSession.email)) {
-            console.log('[Admin Page] Admin access granted via localStorage');
-            setIsAdmin(true);
-            await Promise.all([loadSalons(), loadLeads()]);
-            setIsLoading(false);
-            return;
-        }
-
-        // If we got here but there's an old local session, clear it
-        if (localSession) {
-            console.log('[Admin Page] Clearing stale local session');
-            db.auth.logout();
-        }
-
-        // Redirect to login
-        console.log('[Admin Page] No valid admin session, redirecting to login');
+        // No valid admin session, redirect to login
         router.replace('/admin/login');
         setIsLoading(false);
     };
