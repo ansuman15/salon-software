@@ -417,64 +417,115 @@
     cursor: not-allowed;
 }
 
-/* Staff Section */
+/* Staff Section - Classy & Refined */
 .staffSection {
     background: white;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border-radius: 12px;
+    padding: 28px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e5e7eb;
 }
 
 .staffSection h3 {
-    margin: 0 0 20px 0;
-    font-size: 18px;
+    margin: 0 0 24px 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: #1f2937;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.staffSection h3::before {
+    content: '';
+    display: block;
+    width: 4px;
+    height: 20px;
+    background: #374151;
+    border-radius: 2px;
 }
 
 .staffTable {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .staffTable th {
     text-align: left;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #4F46E5, #7C3AED);
-    color: white;
-    font-size: 12px;
+    padding: 14px 20px;
+    background: #fafafa;
+    color: #6b7280;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .staffTable th:first-child {
-    border-radius: 10px 0 0 0;
+    border-radius: 8px 0 0 0;
+    border-left: 1px solid #e5e7eb;
 }
 
 .staffTable th:last-child {
-    border-radius: 0 10px 0 0;
+    border-radius: 0 8px 0 0;
+    border-right: 1px solid #e5e7eb;
 }
 
 .staffTable td {
-    padding: 16px;
+    padding: 18px 20px;
     border-bottom: 1px solid #f3f4f6;
     font-size: 14px;
+    color: #374151;
+    vertical-align: middle;
 }
 
-.staffTable tr:nth-child(even) td {
-    background: #f9fafb;
+.staffTable tbody tr {
+    transition: background-color 0.15s ease;
 }
 
-.staffTable tr:hover td {
+.staffTable tbody tr:hover td {
+    background: #fafafa;
+}
+
+.staffTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.staffTable tbody tr:last-child td:first-child {
+    border-radius: 0 0 0 8px;
+}
+
+.staffTable tbody tr:last-child td:last-child {
+    border-radius: 0 0 8px 0;
+}
+
+.staffTable .rank {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: #f3f4f6;
+    color: #6b7280;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .staffName {
-    font-weight: 600;
-    color: #111827;
+    font-weight: 500;
+    color: #1f2937;
+    letter-spacing: -0.01em;
 }
 
 .revenue {
-    color: #10B981;
+    color: #059669;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Empty State */

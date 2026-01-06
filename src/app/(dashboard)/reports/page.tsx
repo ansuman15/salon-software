@@ -469,14 +469,14 @@ export default function ReportsPage() {
                 {/* Staff Performance Tab */}
                 {activeTab === 'staff' && (
                     <div className={styles.staffSection}>
-                        <h3>👥 Staff Performance</h3>
+                        <h3>Staff Performance</h3>
                         {staffPerformance.length > 0 ? (
                             <table className={styles.staffTable}>
                                 <thead>
                                     <tr>
-                                        <th>#</th>
+                                        <th>Rank</th>
                                         <th>Staff Name</th>
-                                        <th>Services Done</th>
+                                        <th>Services Completed</th>
                                         <th>Revenue Generated</th>
                                         <th>Avg per Service</th>
                                     </tr>
@@ -484,11 +484,11 @@ export default function ReportsPage() {
                                 <tbody>
                                     {staffPerformance.map((staff, idx) => (
                                         <tr key={idx}>
-                                            <td className={styles.rank}>#{idx + 1}</td>
+                                            <td><span className={styles.rank}>{idx + 1}</span></td>
                                             <td className={styles.staffName}>{staff.name}</td>
                                             <td>{staff.services}</td>
                                             <td className={styles.revenue}>{formatCurrency(staff.revenue)}</td>
-                                            <td>{staff.services > 0 ? formatCurrency(staff.revenue / staff.services) : '-'}</td>
+                                            <td>{staff.services > 0 ? formatCurrency(staff.revenue / staff.services) : '—'}</td>
                                         </tr>
                                     ))}
                                 </tbody>
