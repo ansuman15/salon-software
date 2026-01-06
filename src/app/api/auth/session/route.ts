@@ -16,27 +16,35 @@ export async function GET(request: NextRequest) {
 
         // Check both cookie formats
         let sessionCookie = cookieStore.get('salon_session');
+        console.log('[Session API] salon_session cookie:', sessionCookie?.value ? 'present' : 'missing');
+
         if (!sessionCookie?.value) {
             sessionCookie = cookieStore.get('salonx_session');
+            console.log('[Session API] salonx_session cookie:', sessionCookie?.value ? 'present' : 'missing');
         }
 
         if (!sessionCookie?.value) {
+            console.log('[Session API] No session cookie found');
             return NextResponse.json({ authenticated: false });
         }
 
         const session = JSON.parse(sessionCookie.value);
+        console.log('[Session API] Session data:', JSON.stringify(session));
 
         // Support both salon_id (new) and salonId (old) formats
         const salonId = session.salon_id || session.salonId;
+        console.log('[Session API] Resolved salonId:', salonId);
 
         // Check if session expired (skip for admin sessions without expiry)
         if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+            console.log('[Session API] Session expired');
             await clearSessionCookies();
             return NextResponse.json({ authenticated: false, reason: 'Session expired' });
         }
 
         // Handle admin sessions (salonId = 'admin')
         if (session.isAdmin || salonId === 'admin') {
+            console.log('[Session API] Admin session detected');
             return NextResponse.json({
                 authenticated: true,
                 isAdmin: true,

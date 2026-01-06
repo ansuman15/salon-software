@@ -13,17 +13,29 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { email, password } = body;
 
+        console.log('[Admin Login] Attempt with email:', email);
+        console.log('[Admin Login] ADMIN_EMAILS:', ADMIN_EMAILS);
+        console.log('[Admin Login] ADMIN_CREDENTIALS.email:', ADMIN_CREDENTIALS.email);
+
         if (!email || !password) {
+            console.log('[Admin Login] Missing email or password');
             return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
         }
 
         // Check if email is in admin list
         if (!ADMIN_EMAILS.includes(email)) {
+            console.log('[Admin Login] Email not in admin list:', email);
             return NextResponse.json({ error: 'Unauthorized - email not in admin list' }, { status: 403 });
         }
+        console.log('[Admin Login] Email is in admin list');
 
         // Verify password against admin credentials
+        console.log('[Admin Login] Checking credentials...');
+        console.log('[Admin Login] Email match:', email === ADMIN_CREDENTIALS.email);
+        console.log('[Admin Login] Password match:', password === ADMIN_CREDENTIALS.password);
+
         if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+            console.log('[Admin Login] Credentials valid, creating session...');
             // Create admin session
             const sessionData = {
                 salonId: 'admin',
@@ -41,6 +53,7 @@ export async function POST(request: NextRequest) {
                 maxAge: 60 * 60 * 24, // 24 hours
                 path: '/',
             });
+            console.log('[Admin Login] Session cookie set successfully');
 
             return NextResponse.json({
                 success: true,
@@ -49,6 +62,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        console.log('[Admin Login] Invalid credentials');
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     } catch (error) {
         console.error('Admin login error:', error);
