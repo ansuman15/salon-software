@@ -23,6 +23,8 @@ export default function ProfilePage() {
         salonName: '',
         phone: '',
         city: '',
+        address: '',
+        gstEnabled: false,
     });
 
     // Initialize form with session data when available
@@ -37,6 +39,8 @@ export default function ProfilePage() {
                 salonName: session.salon.name || '',
                 phone: session.salon.phone || '',
                 city: session.salon.city || '',
+                address: (session.salon as { address?: string }).address || '',
+                gstEnabled: (session.salon as { gst_enabled?: boolean }).gst_enabled ?? false,
             });
             if (session.salon.logo_url) {
                 setLogoUrl(session.salon.logo_url);
@@ -54,6 +58,8 @@ export default function ProfilePage() {
                 name: formData.salonName,
                 phone: formData.phone,
                 city: formData.city,
+                address: formData.address,
+                gst_enabled: formData.gstEnabled,
             };
 
             console.log('[Profile] Sending PATCH to /api/salon with:', payload);
@@ -298,6 +304,44 @@ export default function ProfilePage() {
                                             />
                                         ) : (
                                             <p>{formData.city || 'Not set'}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className={styles.formSection}>
+                                <h4>GST Settings</h4>
+                                <div className={styles.formGrid}>
+                                    <div className={styles.field}>
+                                        <label>Enable GST (18%)</label>
+                                        <div className={styles.toggleRow}>
+                                            <button
+                                                type="button"
+                                                className={`${styles.toggle} ${formData.gstEnabled ? styles.toggleOn : ''}`}
+                                                onClick={() => isEditing && setFormData({ ...formData, gstEnabled: !formData.gstEnabled })}
+                                                disabled={!isEditing}
+                                            >
+                                                <span className={styles.toggleHandle} />
+                                            </button>
+                                            <span className={styles.toggleLabel}>
+                                                {formData.gstEnabled ? 'GST Enabled (18%)' : 'GST Disabled'}
+                                            </span>
+                                        </div>
+                                        <span className={styles.hint}>
+                                            When enabled, 18% GST will be applied to all bills
+                                        </span>
+                                    </div>
+                                    <div className={styles.field}>
+                                        <label>Address</label>
+                                        {isEditing ? (
+                                            <input
+                                                type="text"
+                                                value={formData.address}
+                                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                                placeholder="Enter salon address"
+                                            />
+                                        ) : (
+                                            <p>{formData.address || 'Not set'}</p>
                                         )}
                                     </div>
                                 </div>

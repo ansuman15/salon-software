@@ -84,9 +84,9 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data }, ref) => {
             <div style={styles.header}>
                 <div style={styles.salonInfo}>
                     <h1 style={styles.salonName}>{data.salon.name}</h1>
-                    {data.salon.address && <p style={styles.salonDetail}>{data.salon.address}</p>}
                     {data.salon.phone && <p style={styles.salonDetail}>📞 {data.salon.phone}</p>}
                     {data.salon.email && <p style={styles.salonDetail}>✉️ {data.salon.email}</p>}
+                    {data.salon.address && <p style={styles.salonDetail}>📍 {data.salon.address}</p>}
                     {data.salon.gst_number && <p style={styles.gst}>GSTIN: {data.salon.gst_number}</p>}
                 </div>
                 <div style={styles.invoiceInfo}>

@@ -37,7 +37,8 @@ export async function GET() {
             phone: salon.phone,
             email: salon.owner_email,
             gst_number: salon.gst_number,
-            gst_percentage: salon.gst_percentage || 0,
+            gst_enabled: salon.gst_enabled ?? false,
+            gst_percentage: salon.gst_enabled ? 18 : 0, // Fixed 18% when enabled
             logoUrl: salon.logo_url,
             status: salon.status,
             createdAt: salon.created_at,
@@ -67,14 +68,14 @@ export async function PATCH(request: NextRequest) {
         console.log('[Salon API] Request body:', body);
 
         const {
-            name, phone, city, address, gst_number, gst_percentage,
+            name, phone, city, address, gst_number, gst_enabled, gst_percentage,
             working_days, opening_time, closing_time, currency,
             invoice_prefix, whatsapp_enabled, whatsapp_number
         } = body;
 
         // At least one field should be provided
         const hasAnyField = name !== undefined || phone !== undefined || city !== undefined ||
-            address !== undefined || gst_number !== undefined || gst_percentage !== undefined ||
+            address !== undefined || gst_number !== undefined || gst_enabled !== undefined || gst_percentage !== undefined ||
             working_days !== undefined || opening_time !== undefined || closing_time !== undefined ||
             currency !== undefined || invoice_prefix !== undefined || whatsapp_enabled !== undefined ||
             whatsapp_number !== undefined;
@@ -93,7 +94,11 @@ export async function PATCH(request: NextRequest) {
         if (city !== undefined) updates.city = sanitizeString(city) || null;
         if (address !== undefined) updates.address = sanitizeString(address) || null;
         if (gst_number !== undefined) updates.gst_number = sanitizeString(gst_number) || null;
-        if (gst_percentage !== undefined) updates.gst_percentage = Number(gst_percentage) || 0;
+        if (gst_enabled !== undefined) {
+            updates.gst_enabled = Boolean(gst_enabled);
+            updates.gst_percentage = Boolean(gst_enabled) ? 18 : 0; // Fixed 18% GST
+        }
+        if (gst_percentage !== undefined && gst_enabled === undefined) updates.gst_percentage = Number(gst_percentage) || 0;
         if (working_days !== undefined) updates.working_days = working_days;
         if (opening_time !== undefined) updates.opening_time = sanitizeString(opening_time) || '09:00';
         if (closing_time !== undefined) updates.closing_time = sanitizeString(closing_time) || '21:00';
@@ -136,7 +141,8 @@ export async function PATCH(request: NextRequest) {
                 phone: salon.phone,
                 email: salon.owner_email,
                 gst_number: salon.gst_number,
-                gst_percentage: salon.gst_percentage || 0,
+                gst_enabled: salon.gst_enabled ?? false,
+                gst_percentage: salon.gst_enabled ? 18 : 0,
                 logoUrl: salon.logo_url,
             },
             message: 'Profile updated successfully'

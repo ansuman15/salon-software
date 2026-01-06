@@ -131,7 +131,7 @@ export default function BillingPage() {
     const invoiceRef = useRef<HTMLDivElement>(null);
 
     // Settings
-    const [gstPercentage, setGstPercentage] = useState(0);
+    const [gstEnabled, setGstEnabled] = useState(false);
     const [salonInfo, setSalonInfo] = useState<{
         name: string;
         address?: string;
@@ -219,7 +219,8 @@ export default function BillingPage() {
                         email: data.salon.email,
                         gst_number: data.salon.gst_number,
                     });
-                    setGstPercentage(data.salon.gst_percentage || 0);
+                    // Load GST enabled state from settings
+                    setGstEnabled(data.salon.gst_enabled ?? false);
                 }
             }
         } catch (err) {
@@ -320,6 +321,7 @@ export default function BillingPage() {
     const totalDiscount = serviceDiscountAmount + productDiscountAmount;
 
     const taxableAmount = subtotal;
+    const gstPercentage = gstEnabled ? 18 : 0; // Fixed 18% when enabled
     const gstAmount = (taxableAmount * gstPercentage) / 100;
     const total = taxableAmount + gstAmount;
 
@@ -894,12 +896,24 @@ export default function BillingPage() {
                                 <span className={styles.discount}>-₹{totalDiscount.toLocaleString()}</span>
                             </div>
                         )}
-                        {gstPercentage > 0 && (
-                            <div className={styles.totalRow}>
-                                <span>GST ({gstPercentage}%)</span>
-                                <span>₹{gstAmount.toLocaleString()}</span>
+
+                        {/* GST Toggle */}
+                        <div className={styles.gstToggleRow}>
+                            <div className={styles.gstLabel}>
+                                <span>GST (18%)</span>
+                                <button
+                                    type="button"
+                                    className={`${styles.gstToggle} ${gstEnabled ? styles.gstOn : ''}`}
+                                    onClick={() => setGstEnabled(!gstEnabled)}
+                                >
+                                    <span className={styles.gstToggleHandle} />
+                                </button>
                             </div>
-                        )}
+                            {gstEnabled && (
+                                <span>₹{gstAmount.toLocaleString()}</span>
+                            )}
+                        </div>
+
                         <div className={`${styles.totalRow} ${styles.grandTotal}`}>
                             <span>Total</span>
                             <span>₹{total.toLocaleString()}</span>
