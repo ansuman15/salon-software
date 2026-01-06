@@ -354,9 +354,17 @@ export default function AttendancePage() {
                 url += `month=${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             }
 
+            console.log('[Attendance Export] Fetching:', url);
             const response = await fetch(url);
+
             if (!response.ok) {
-                throw new Error('Export failed');
+                // Try to get error message from response
+                const contentType = response.headers.get('content-type');
+                if (contentType?.includes('application/json')) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Export failed');
+                }
+                throw new Error(`Export failed: ${response.status}`);
             }
 
             const blob = await response.blob();
@@ -373,7 +381,7 @@ export default function AttendancePage() {
             setSuccessMessage(`${format.toUpperCase()} export downloaded successfully!`);
         } catch (err) {
             console.error('Export error:', err);
-            setError('Failed to export attendance');
+            setError(err instanceof Error ? err.message : 'Failed to export attendance');
         } finally {
             setIsExporting(false);
         }
