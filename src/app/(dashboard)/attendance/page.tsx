@@ -362,7 +362,10 @@ export default function AttendancePage() {
                 const contentType = response.headers.get('content-type');
                 if (contentType?.includes('application/json')) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || 'Export failed');
+                    const errorMsg = errorData.details
+                        ? `${errorData.error}: ${errorData.details}`
+                        : errorData.error || 'Export failed';
+                    throw new Error(errorMsg);
                 }
                 throw new Error(`Export failed: ${response.status}`);
             }

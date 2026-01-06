@@ -251,7 +251,15 @@ export async function GET(request: NextRequest) {
 
     } catch (error) {
         console.error('[Attendance PDF Export] Error:', error);
-        return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });
+        console.error('[Attendance PDF Export] Error details:', {
+            name: error instanceof Error ? error.name : 'Unknown',
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        });
+        return NextResponse.json({
+            error: 'Failed to generate PDF',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
     }
 }
 
