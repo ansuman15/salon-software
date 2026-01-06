@@ -1,12 +1,12 @@
 /**
- * Report PDF Download API
+ * Report PDF Download API using pdf-lib
  * GET /api/reports/download?period=week|month
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { verifySession, unauthorizedResponse } from '@/lib/apiAuth';
-import PDFDocument from 'pdfkit';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,23 +57,16 @@ export async function GET(request: NextRequest) {
             .gte('created_at', startDate.toISOString())
             .order('created_at', { ascending: false });
 
-        // Fetch staff performance - get bill_items linked to bills from this salon in the period
-        // First get bill IDs from this period
+        // Fetch staff performance
         const billIds = (bills || []).map(b => b.id);
-
         let staffPerformance: { name: string; services: number; revenue: number }[] = [];
 
         if (billIds.length > 0) {
-            const { data: billItems, error: itemsError } = await supabase
+            const { data: billItems } = await supabase
                 .from('bill_items')
                 .select('total_price, staff_id')
                 .in('bill_id', billIds);
 
-            if (itemsError) {
-                console.error('[Report Download] Bill items error:', itemsError);
-            }
-
-            // Aggregate staff performance
             const staffStats: Record<string, { services: number; revenue: number }> = {};
             (billItems || []).forEach(item => {
                 if (item.staff_id) {
@@ -85,7 +78,6 @@ export async function GET(request: NextRequest) {
                 }
             });
 
-            // Get staff names
             const staffIds = Object.keys(staffStats);
             if (staffIds.length > 0) {
                 const { data: staffMembers } = await supabase
@@ -109,153 +101,296 @@ export async function GET(request: NextRequest) {
         const totalBills = bills?.length || 0;
         const avgTransaction = totalBills > 0 ? totalRevenue / totalBills : 0;
 
-        // Create PDF
-        const doc = new PDFDocument({ margin: 40, size: 'A4' });
-        const chunks: Buffer[] = [];
-        doc.on('data', (chunk) => chunks.push(chunk));
+        // Create PDF document
+        const pdfDoc = await PDFDocument.create();
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-        // Header
-        doc.fontSize(24).font('Helvetica-Bold')
-            .text(salon?.name || 'SalonX', { align: 'center' });
-        doc.fontSize(12).font('Helvetica')
-            .text('Business Report', { align: 'center' });
-        doc.moveDown(0.5);
-        doc.fontSize(10).fillColor('#666666')
-            .text(`Period: ${periodLabel}`, { align: 'center' });
-        if (salon?.city) doc.text(`Location: ${salon.city}`, { align: 'center' });
-        if (salon?.phone) doc.text(`Phone: ${salon.phone}`, { align: 'center' });
+        let page = pdfDoc.addPage([595, 842]); // A4 size
+        const { width, height } = page.getSize();
+        let yPos = height - 50;
 
-        doc.moveDown(1);
-        doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke('#e5e7eb');
-        doc.moveDown(1);
+        // Title
+        page.drawText(salon?.name || 'SalonX', {
+            x: 50,
+            y: yPos,
+            size: 24,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+        });
+        yPos -= 25;
 
-        // Revenue Summary
-        doc.fillColor('#000000').fontSize(16).font('Helvetica-Bold')
-            .text('📊 Revenue Summary');
-        doc.moveDown(0.5);
+        page.drawText('Business Report', {
+            x: 50,
+            y: yPos,
+            size: 12,
+            font: helveticaFont,
+            color: rgb(0.4, 0.4, 0.4),
+        });
+        yPos -= 20;
 
-        const summaryY = doc.y;
-        doc.fontSize(11).font('Helvetica');
+        page.drawText(`Period: ${periodLabel}`, {
+            x: 50,
+            y: yPos,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0.4, 0.4, 0.4),
+        });
+        yPos -= 15;
+
+        if (salon?.city) {
+            page.drawText(`Location: ${salon.city}`, {
+                x: 50,
+                y: yPos,
+                size: 10,
+                font: helveticaFont,
+                color: rgb(0.4, 0.4, 0.4),
+            });
+            yPos -= 15;
+        }
+
+        // Separator
+        yPos -= 10;
+        page.drawLine({
+            start: { x: 50, y: yPos },
+            end: { x: width - 50, y: yPos },
+            thickness: 1,
+            color: rgb(0.9, 0.9, 0.9),
+        });
+        yPos -= 25;
+
+        // Revenue Summary Section
+        page.drawText('📊 Revenue Summary', {
+            x: 50,
+            y: yPos,
+            size: 14,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+        });
+        yPos -= 25;
 
         // Summary boxes
         const boxWidth = 160;
         const boxHeight = 50;
-        const boxGap = 17;
+        const boxGap = 15;
 
         // Total Revenue Box
-        doc.fillColor('#4F46E5').rect(40, summaryY, boxWidth, boxHeight).fill();
-        doc.fillColor('#FFFFFF').fontSize(10).text('Total Revenue', 50, summaryY + 8);
-        doc.fontSize(18).font('Helvetica-Bold').text(`₹${totalRevenue.toLocaleString('en-IN')}`, 50, summaryY + 25);
+        page.drawRectangle({
+            x: 50,
+            y: yPos - boxHeight + 15,
+            width: boxWidth,
+            height: boxHeight,
+            color: rgb(0.31, 0.27, 0.9), // Purple
+        });
+        page.drawText('Total Revenue', {
+            x: 60,
+            y: yPos,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(1, 1, 1),
+        });
+        page.drawText(`₹${totalRevenue.toLocaleString('en-IN')}`, {
+            x: 60,
+            y: yPos - 18,
+            size: 16,
+            font: helveticaBold,
+            color: rgb(1, 1, 1),
+        });
 
         // Total Bills Box
-        doc.fillColor('#10B981').rect(40 + boxWidth + boxGap, summaryY, boxWidth, boxHeight).fill();
-        doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica').text('Total Bills', 50 + boxWidth + boxGap, summaryY + 8);
-        doc.fontSize(18).font('Helvetica-Bold').text(`${totalBills}`, 50 + boxWidth + boxGap, summaryY + 25);
+        page.drawRectangle({
+            x: 50 + boxWidth + boxGap,
+            y: yPos - boxHeight + 15,
+            width: boxWidth,
+            height: boxHeight,
+            color: rgb(0.06, 0.73, 0.51), // Green
+        });
+        page.drawText('Total Bills', {
+            x: 60 + boxWidth + boxGap,
+            y: yPos,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(1, 1, 1),
+        });
+        page.drawText(`${totalBills}`, {
+            x: 60 + boxWidth + boxGap,
+            y: yPos - 18,
+            size: 16,
+            font: helveticaBold,
+            color: rgb(1, 1, 1),
+        });
 
         // Avg Transaction Box
-        doc.fillColor('#F59E0B').rect(40 + (boxWidth + boxGap) * 2, summaryY, boxWidth, boxHeight).fill();
-        doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica').text('Avg Transaction', 50 + (boxWidth + boxGap) * 2, summaryY + 8);
-        doc.fontSize(18).font('Helvetica-Bold').text(`₹${Math.round(avgTransaction).toLocaleString('en-IN')}`, 50 + (boxWidth + boxGap) * 2, summaryY + 25);
+        page.drawRectangle({
+            x: 50 + (boxWidth + boxGap) * 2,
+            y: yPos - boxHeight + 15,
+            width: boxWidth,
+            height: boxHeight,
+            color: rgb(0.96, 0.62, 0.04), // Orange
+        });
+        page.drawText('Avg Transaction', {
+            x: 60 + (boxWidth + boxGap) * 2,
+            y: yPos,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(1, 1, 1),
+        });
+        page.drawText(`₹${Math.round(avgTransaction).toLocaleString('en-IN')}`, {
+            x: 60 + (boxWidth + boxGap) * 2,
+            y: yPos - 18,
+            size: 16,
+            font: helveticaBold,
+            color: rgb(1, 1, 1),
+        });
 
-        doc.y = summaryY + boxHeight + 20;
-        doc.fillColor('#000000');
+        yPos -= boxHeight + 30;
 
         // Staff Performance Table
         if (staffPerformance.length > 0) {
-            doc.moveDown(1);
-            doc.fontSize(16).font('Helvetica-Bold').text('👥 Staff Performance');
-            doc.moveDown(0.5);
-
-            const tableTop = doc.y;
-            const colWidths = [200, 120, 150];
-            let xPos = 40;
+            page.drawText('👥 Staff Performance', {
+                x: 50,
+                y: yPos,
+                size: 14,
+                font: helveticaBold,
+                color: rgb(0, 0, 0),
+            });
+            yPos -= 20;
 
             // Header
-            doc.fillColor('#4F46E5').rect(40, tableTop - 5, 515, 22).fill();
-            doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold');
-            ['Staff Name', 'Services Done', 'Revenue Generated'].forEach((header, i) => {
-                doc.text(header, xPos + 5, tableTop, { width: colWidths[i] });
-                xPos += colWidths[i];
+            page.drawRectangle({
+                x: 50,
+                y: yPos - 5,
+                width: width - 100,
+                height: 22,
+                color: rgb(0.31, 0.27, 0.9),
             });
 
-            // Rows
-            doc.fillColor('#000000').font('Helvetica').fontSize(10);
-            let rowY = tableTop + 22;
+            const staffColWidths = [200, 120, 150];
+            let xPos = 55;
+            ['Staff Name', 'Services Done', 'Revenue Generated'].forEach((header, i) => {
+                page.drawText(header, {
+                    x: xPos,
+                    y: yPos,
+                    size: 10,
+                    font: helveticaBold,
+                    color: rgb(1, 1, 1),
+                });
+                xPos += staffColWidths[i];
+            });
+            yPos -= 25;
 
+            // Staff rows
             staffPerformance.slice(0, 10).forEach((staff, idx) => {
                 if (idx % 2 === 0) {
-                    doc.fillColor('#F9FAFB').rect(40, rowY - 3, 515, 18).fill();
+                    page.drawRectangle({
+                        x: 50,
+                        y: yPos - 3,
+                        width: width - 100,
+                        height: 18,
+                        color: rgb(0.97, 0.97, 0.98),
+                    });
                 }
-                doc.fillColor('#000000');
-                xPos = 40;
-                doc.text(staff.name, xPos + 5, rowY, { width: colWidths[0] });
-                xPos += colWidths[0];
-                doc.text(staff.services.toString(), xPos + 5, rowY, { width: colWidths[1] });
-                xPos += colWidths[1];
-                doc.text(`₹${staff.revenue.toLocaleString('en-IN')}`, xPos + 5, rowY, { width: colWidths[2] });
-                rowY += 18;
+
+                xPos = 55;
+                page.drawText(staff.name.substring(0, 30), { x: xPos, y: yPos, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+                xPos += staffColWidths[0];
+                page.drawText(staff.services.toString(), { x: xPos, y: yPos, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+                xPos += staffColWidths[1];
+                page.drawText(`₹${staff.revenue.toLocaleString('en-IN')}`, { x: xPos, y: yPos, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+
+                yPos -= 18;
             });
 
-            doc.y = rowY + 10;
+            yPos -= 15;
         }
 
         // Recent Bills Table
         if ((bills?.length || 0) > 0) {
-            doc.moveDown(1);
-            doc.fontSize(16).font('Helvetica-Bold').text('🧾 Recent Bills');
-            doc.moveDown(0.5);
+            // Check if we need a new page
+            if (yPos < 200) {
+                page = pdfDoc.addPage([595, 842]);
+                yPos = height - 50;
+            }
 
-            const tableTop = doc.y;
-            const colWidths = [90, 130, 100, 80, 100];
-            let xPos = 40;
+            page.drawText('🧾 Recent Bills', {
+                x: 50,
+                y: yPos,
+                size: 14,
+                font: helveticaBold,
+                color: rgb(0, 0, 0),
+            });
+            yPos -= 20;
 
             // Header
-            doc.fillColor('#4F46E5').rect(40, tableTop - 5, 515, 22).fill();
-            doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica-Bold');
-            ['Invoice #', 'Customer', 'Date', 'Method', 'Amount'].forEach((header, i) => {
-                doc.text(header, xPos + 3, tableTop, { width: colWidths[i] });
-                xPos += colWidths[i];
+            page.drawRectangle({
+                x: 50,
+                y: yPos - 5,
+                width: width - 100,
+                height: 22,
+                color: rgb(0.31, 0.27, 0.9),
             });
 
-            // Rows (last 15)
-            doc.fillColor('#000000').font('Helvetica').fontSize(9);
-            let rowY = tableTop + 22;
+            const billColWidths = [90, 130, 100, 80, 100];
+            let xPos = 55;
+            ['Invoice #', 'Customer', 'Date', 'Method', 'Amount'].forEach((header, i) => {
+                page.drawText(header, {
+                    x: xPos,
+                    y: yPos,
+                    size: 9,
+                    font: helveticaBold,
+                    color: rgb(1, 1, 1),
+                });
+                xPos += billColWidths[i];
+            });
+            yPos -= 22;
 
+            // Bill rows
             (bills || []).slice(0, 15).forEach((bill, idx) => {
-                if (rowY > 750) return; // Page break protection
+                if (yPos < 50) return;
 
                 if (idx % 2 === 0) {
-                    doc.fillColor('#F9FAFB').rect(40, rowY - 3, 515, 16).fill();
+                    page.drawRectangle({
+                        x: 50,
+                        y: yPos - 3,
+                        width: width - 100,
+                        height: 16,
+                        color: rgb(0.97, 0.97, 0.98),
+                    });
                 }
-                doc.fillColor('#000000');
-                xPos = 40;
 
                 const customer = Array.isArray(bill.customer) ? bill.customer[0] : bill.customer;
                 const date = new Date(bill.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 
-                doc.text(bill.invoice_number, xPos + 3, rowY, { width: colWidths[0] });
-                xPos += colWidths[0];
-                doc.text((customer as { name?: string })?.name || '-', xPos + 3, rowY, { width: colWidths[1] });
-                xPos += colWidths[1];
-                doc.text(date, xPos + 3, rowY, { width: colWidths[2] });
-                xPos += colWidths[2];
-                doc.text(bill.payment_method.toUpperCase(), xPos + 3, rowY, { width: colWidths[3] });
-                xPos += colWidths[3];
-                doc.text(`₹${(bill.final_amount || 0).toLocaleString('en-IN')}`, xPos + 3, rowY, { width: colWidths[4] });
+                xPos = 55;
+                page.drawText(bill.invoice_number.substring(0, 12), { x: xPos, y: yPos, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+                xPos += billColWidths[0];
+                page.drawText(((customer as { name?: string })?.name || '-').substring(0, 18), { x: xPos, y: yPos, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+                xPos += billColWidths[1];
+                page.drawText(date, { x: xPos, y: yPos, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+                xPos += billColWidths[2];
+                page.drawText(bill.payment_method.toUpperCase(), { x: xPos, y: yPos, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+                xPos += billColWidths[3];
+                page.drawText(`₹${(bill.final_amount || 0).toLocaleString('en-IN')}`, { x: xPos, y: yPos, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
 
-                rowY += 16;
+                yPos -= 16;
             });
         }
 
         // Footer
-        doc.fontSize(8).fillColor('#999999')
-            .text(`Generated on ${new Date().toLocaleString('en-IN')}`, 40, doc.page.height - 40, { align: 'center', width: 515 });
+        const pages = pdfDoc.getPages();
+        pages.forEach(p => {
+            p.drawText(`Generated on ${new Date().toLocaleString('en-IN')}`, {
+                x: 50,
+                y: 30,
+                size: 8,
+                font: helveticaFont,
+                color: rgb(0.6, 0.6, 0.6),
+            });
+        });
 
-        doc.end();
-
-        await new Promise<void>((resolve) => doc.on('end', resolve));
-        const pdfBuffer = Buffer.concat(chunks);
-
+        // Generate PDF bytes
+        const pdfBytes = await pdfDoc.save();
+        const pdfBuffer = Buffer.from(pdfBytes);
         const filename = `Report_${periodLabel.replace(/\s+/g, '_')}.pdf`;
 
         return new NextResponse(pdfBuffer, {
@@ -268,6 +403,9 @@ export async function GET(request: NextRequest) {
 
     } catch (error) {
         console.error('[Report Download] Error:', error);
-        return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Failed to generate report',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
     }
 }

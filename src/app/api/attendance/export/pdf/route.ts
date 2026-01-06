@@ -1,5 +1,5 @@
 /**
- * Attendance PDF Export API - Generate PDF file
+ * Attendance PDF Export API - Generate PDF file using pdf-lib
  * GET /api/attendance/export/pdf?date=YYYY-MM-DD
  * GET /api/attendance/export/pdf?from=YYYY-MM-DD&to=YYYY-MM-DD
  * GET /api/attendance/export/pdf?month=YYYY-MM
@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
-import PDFDocument from 'pdfkit';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,146 +99,209 @@ export async function GET(request: NextRequest) {
         }
 
         // Create PDF document
-        const doc = new PDFDocument({
-            margin: 40,
-            size: 'A4',
-            bufferPages: true
+        const pdfDoc = await PDFDocument.create();
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+        let page = pdfDoc.addPage([595, 842]); // A4 size
+        const { width, height } = page.getSize();
+        let yPos = height - 50;
+
+        // Title
+        page.drawText(salon?.name || 'Attendance Report', {
+            x: 50,
+            y: yPos,
+            size: 20,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
         });
+        yPos -= 25;
 
-        // Collect PDF data into buffer
-        const chunks: Buffer[] = [];
-        doc.on('data', (chunk) => chunks.push(chunk));
-
-        // Title and Header
-        doc.fontSize(20).font('Helvetica-Bold')
-            .text(salon?.name || 'Attendance Report', { align: 'center' });
-
-        doc.moveDown(0.5);
-        doc.fontSize(10).font('Helvetica')
-            .text(`Period: ${formatDate(startDate)} to ${formatDate(endDate)}`, { align: 'center' });
+        // Period
+        page.drawText(`Period: ${formatDate(startDate)} to ${formatDate(endDate)}`, {
+            x: 50,
+            y: yPos,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0.4, 0.4, 0.4),
+        });
+        yPos -= 15;
 
         if (salon?.phone) {
-            doc.text(`Phone: ${salon.phone}`, { align: 'center' });
-        }
-        if (salon?.city) {
-            doc.text(`Location: ${salon.city}`, { align: 'center' });
+            page.drawText(`Phone: ${salon.phone}`, {
+                x: 50,
+                y: yPos,
+                size: 10,
+                font: helveticaFont,
+                color: rgb(0.4, 0.4, 0.4),
+            });
+            yPos -= 15;
         }
 
-        doc.moveDown(1);
-
-        // Draw separator line
-        doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-        doc.moveDown(0.5);
+        // Separator line
+        yPos -= 10;
+        page.drawLine({
+            start: { x: 50, y: yPos },
+            end: { x: width - 50, y: yPos },
+            thickness: 1,
+            color: rgb(0.8, 0.8, 0.8),
+        });
+        yPos -= 20;
 
         // Table Header
-        const tableTop = doc.y;
-        const tableHeaders = ['Date', 'Staff Name', 'Role', 'Status', 'Check-in', 'Check-out'];
-        const colWidths = [70, 130, 90, 70, 65, 65];
-        let xPos = 40;
+        const colWidths = [70, 130, 80, 70, 65, 65];
+        const headers = ['Date', 'Staff Name', 'Role', 'Status', 'Check-in', 'Check-out'];
 
         // Header background
-        doc.fillColor('#4F46E5').rect(40, tableTop - 5, 515, 20).fill();
-
-        doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold');
-        tableHeaders.forEach((header, i) => {
-            doc.text(header, xPos + 3, tableTop, { width: colWidths[i], align: 'left' });
-            xPos += colWidths[i];
+        page.drawRectangle({
+            x: 50,
+            y: yPos - 5,
+            width: width - 100,
+            height: 20,
+            color: rgb(0.31, 0.27, 0.9), // Purple
         });
 
-        doc.moveDown(1);
+        let xPos = 55;
+        headers.forEach((header, i) => {
+            page.drawText(header, {
+                x: xPos,
+                y: yPos,
+                size: 9,
+                font: helveticaBold,
+                color: rgb(1, 1, 1), // White
+            });
+            xPos += colWidths[i];
+        });
+        yPos -= 25;
 
         // Table Rows
-        doc.fillColor('#000000').font('Helvetica').fontSize(9);
-        let rowY = doc.y;
         let rowCount = 0;
-
         for (const record of attendanceData || []) {
             // Check if we need a new page
-            if (rowY > 750) {
-                doc.addPage();
-                rowY = 50;
+            if (yPos < 80) {
+                page = pdfDoc.addPage([595, 842]);
+                yPos = height - 50;
 
                 // Repeat header on new page
-                xPos = 40;
-                doc.fillColor('#4F46E5').rect(40, rowY - 5, 515, 20).fill();
-                doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold');
-                tableHeaders.forEach((header, i) => {
-                    doc.text(header, xPos + 3, rowY, { width: colWidths[i], align: 'left' });
+                page.drawRectangle({
+                    x: 50,
+                    y: yPos - 5,
+                    width: width - 100,
+                    height: 20,
+                    color: rgb(0.31, 0.27, 0.9),
+                });
+
+                xPos = 55;
+                headers.forEach((header, i) => {
+                    page.drawText(header, {
+                        x: xPos,
+                        y: yPos,
+                        size: 9,
+                        font: helveticaBold,
+                        color: rgb(1, 1, 1),
+                    });
                     xPos += colWidths[i];
                 });
-                rowY += 20;
-                doc.fillColor('#000000').font('Helvetica').fontSize(9);
+                yPos -= 25;
             }
 
             // Alternate row background
             if (rowCount % 2 === 0) {
-                doc.fillColor('#F9FAFB').rect(40, rowY - 3, 515, 18).fill();
+                page.drawRectangle({
+                    x: 50,
+                    y: yPos - 3,
+                    width: width - 100,
+                    height: 16,
+                    color: rgb(0.97, 0.97, 0.98),
+                });
             }
-            doc.fillColor('#000000');
 
             // Staff data handling
             const staffData = record.staff as { name: string; role: string }[] | null;
             const staff = Array.isArray(staffData) ? staffData[0] : staffData;
 
-            xPos = 40;
             const rowData = [
                 formatDate(record.attendance_date),
-                staff?.name || 'Unknown',
-                staff?.role || '-',
+                (staff?.name || 'Unknown').substring(0, 20),
+                (staff?.role || '-').substring(0, 12),
                 formatStatus(record.status),
                 record.check_in_time || '-',
                 record.check_out_time || '-'
             ];
 
-            // Color status cell
+            xPos = 55;
             rowData.forEach((text, i) => {
-                if (i === 3) {
-                    // Status column with color
-                    const statusColor = getStatusColor(record.status);
-                    doc.fillColor(statusColor);
+                let textColor = rgb(0, 0, 0);
+                if (i === 3) { // Status column
+                    textColor = getStatusColor(record.status);
                 }
-                doc.text(text, xPos + 3, rowY, { width: colWidths[i], align: 'left' });
-                if (i === 3) {
-                    doc.fillColor('#000000');
-                }
+                page.drawText(text, {
+                    x: xPos,
+                    y: yPos,
+                    size: 8,
+                    font: helveticaFont,
+                    color: textColor,
+                });
                 xPos += colWidths[i];
             });
 
-            rowY += 18;
+            yPos -= 16;
             rowCount++;
         }
 
-        // Draw bottom border
-        doc.moveTo(40, rowY + 5).lineTo(555, rowY + 5).stroke();
-
         // Summary section
-        doc.moveDown(2);
-        doc.fontSize(12).font('Helvetica-Bold').text('Summary', 40);
-        doc.moveDown(0.5);
+        yPos -= 20;
+        page.drawLine({
+            start: { x: 50, y: yPos },
+            end: { x: width - 50, y: yPos },
+            thickness: 1,
+            color: rgb(0.8, 0.8, 0.8),
+        });
+        yPos -= 20;
+
+        page.drawText('Summary', {
+            x: 50,
+            y: yPos,
+            size: 12,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+        });
+        yPos -= 20;
 
         const presentCount = attendanceData?.filter(r => r.status === 'present').length || 0;
         const absentCount = attendanceData?.filter(r => r.status === 'absent').length || 0;
         const halfDayCount = attendanceData?.filter(r => r.status === 'half_day').length || 0;
         const leaveCount = attendanceData?.filter(r => r.status === 'leave').length || 0;
 
-        doc.fontSize(10).font('Helvetica');
-        doc.text(`Total Records: ${attendanceData?.length || 0}`, 40);
-        doc.text(`Present: ${presentCount}  |  Absent: ${absentCount}  |  Half Day: ${halfDayCount}  |  Leave: ${leaveCount}`, 40);
+        page.drawText(`Total Records: ${attendanceData?.length || 0}`, {
+            x: 50,
+            y: yPos,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
 
-        // Footer with generation time
-        doc.moveDown(2);
-        doc.fontSize(8).fillColor('#666666')
-            .text(`Generated on ${new Date().toLocaleString('en-IN')}`, 40, doc.page.height - 50, { align: 'center', width: 515 });
+        page.drawText(`Present: ${presentCount}  |  Absent: ${absentCount}  |  Half Day: ${halfDayCount}  |  Leave: ${leaveCount}`, {
+            x: 50,
+            y: yPos,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+        });
 
-        // Finalize PDF
-        doc.end();
+        // Footer
+        page.drawText(`Generated on ${new Date().toLocaleString('en-IN')}`, {
+            x: 50,
+            y: 30,
+            size: 8,
+            font: helveticaFont,
+            color: rgb(0.6, 0.6, 0.6),
+        });
 
-        // Wait for PDF to be completed
-        await new Promise<void>((resolve) => doc.on('end', resolve));
-
-        const pdfBuffer = Buffer.concat(chunks);
-
-        // Return as downloadable file
+        // Generate PDF bytes
+        const pdfBytes = await pdfDoc.save();
+        const pdfBuffer = Buffer.from(pdfBytes);
         const filename = `Attendance_${startDate}_to_${endDate}.pdf`;
 
         return new NextResponse(pdfBuffer, {
@@ -251,11 +314,6 @@ export async function GET(request: NextRequest) {
 
     } catch (error) {
         console.error('[Attendance PDF Export] Error:', error);
-        console.error('[Attendance PDF Export] Error details:', {
-            name: error instanceof Error ? error.name : 'Unknown',
-            message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-        });
         return NextResponse.json({
             error: 'Failed to generate PDF',
             details: error instanceof Error ? error.message : 'Unknown error'
@@ -278,12 +336,12 @@ function formatStatus(status: string): string {
     }
 }
 
-function getStatusColor(status: string): string {
+function getStatusColor(status: string) {
     switch (status) {
-        case 'present': return '#16A34A';
-        case 'absent': return '#DC2626';
-        case 'half_day': return '#D97706';
-        case 'leave': return '#2563EB';
-        default: return '#000000';
+        case 'present': return rgb(0.09, 0.64, 0.29); // Green
+        case 'absent': return rgb(0.86, 0.15, 0.15); // Red
+        case 'half_day': return rgb(0.85, 0.47, 0.02); // Orange
+        case 'leave': return rgb(0.15, 0.39, 0.92); // Blue
+        default: return rgb(0, 0, 0);
     }
 }
