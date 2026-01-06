@@ -19,12 +19,12 @@ export async function getApiSession(): Promise<ApiSession | null> {
     try {
         const cookieStore = await cookies();
 
-        // Try salon_session first (new format)
-        let sessionCookie = cookieStore.get('salon_session');
+        // IMPORTANT: Check salonx_session FIRST (used by admin login), then salon_session
+        let sessionCookie = cookieStore.get('salonx_session');
 
-        // Fallback to salonx_session (old format)
+        // Fallback to salon_session (legacy)
         if (!sessionCookie?.value) {
-            sessionCookie = cookieStore.get('salonx_session');
+            sessionCookie = cookieStore.get('salon_session');
         }
 
         if (!sessionCookie?.value) {
@@ -58,9 +58,10 @@ export async function getAdminSession(): Promise<{ email: string; isAdmin: boole
     try {
         const cookieStore = await cookies();
 
-        let sessionCookie = cookieStore.get('salon_session');
+        // Check salonx_session first (used by admin login)
+        let sessionCookie = cookieStore.get('salonx_session');
         if (!sessionCookie?.value) {
-            sessionCookie = cookieStore.get('salonx_session');
+            sessionCookie = cookieStore.get('salon_session');
         }
 
         if (!sessionCookie?.value) {
