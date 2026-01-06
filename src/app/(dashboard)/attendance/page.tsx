@@ -725,16 +725,8 @@ export default function AttendancePage() {
                                 className={styles.confirmBtn}
                                 onClick={() => handleExport('pdf')}
                                 disabled={isExporting || (exportType === 'range' && (!exportFrom || !exportTo))}
-                                style={{ background: '#DC2626' }}
                             >
                                 {isExporting ? 'Exporting...' : '📄 Download PDF'}
-                            </button>
-                            <button
-                                className={styles.confirmBtn}
-                                onClick={() => handleExport('excel')}
-                                disabled={isExporting || (exportType === 'range' && (!exportFrom || !exportTo))}
-                            >
-                                {isExporting ? 'Exporting...' : '📊 Download Excel'}
                             </button>
                         </div>
                     </div>

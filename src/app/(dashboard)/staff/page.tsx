@@ -233,6 +233,12 @@ export default function StaffPage() {
             return;
         }
 
+        // Check for mandatory Aadhar number
+        if (!formData.aadhar || formData.aadhar.trim().length < 12) {
+            toast.error('Please enter a valid Aadhar number (12 digits)');
+            return;
+        }
+
         setIsSaving(true);
 
         try {
@@ -535,13 +541,14 @@ export default function StaffPage() {
                                 </div>
                             </div>
                             <div className={styles.formGroup}>
-                                <label>Aadhar Number</label>
+                                <label>Aadhar Number <span className={styles.required}>*</span></label>
                                 <input
                                     type="text"
                                     placeholder="XXXX-XXXX-XXXX"
                                     value={formData.aadhar}
                                     onChange={e => setFormData({ ...formData, aadhar: e.target.value })}
                                     maxLength={14}
+                                    required
                                 />
                             </div>
                         </div>
