@@ -1,25 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // Bundle PDFKit font data for serverless
-    webpack: (config, { isServer }) => {
-        if (isServer) {
-            // Include pdfkit font data files for PDF generation
-            config.resolve.alias = {
-                ...config.resolve.alias,
-            };
-        }
-        return config;
-    },
-
     // Output standalone for serverless
     output: 'standalone',
 
     // Enable experimental features for better performance
     experimental: {
-        outputFileTracingIncludes: {
-            '/api/attendance/export/pdf': ['./node_modules/pdfkit/js/data/**/*'],
-            '/api/reports/download': ['./node_modules/pdfkit/js/data/**/*'],
-        },
         optimizePackageImports: ['@supabase/supabase-js'],
     },
 
