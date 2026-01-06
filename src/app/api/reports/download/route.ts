@@ -11,16 +11,27 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+    let step = 'init';
+
     try {
+        // Step 1: Verify session
+        step = 'session';
         const session = await verifySession();
         if (!session) return unauthorizedResponse();
 
+        console.log('[Report Download] Session verified for salon:', session.salonId);
+
+        // Step 2: Parse params
+        step = 'params';
         const { searchParams } = new URL(request.url);
         const period = searchParams.get('period') || 'month';
 
+        // Step 3: Get Supabase client
+        step = 'supabase';
         const supabase = getSupabaseAdmin();
 
-        // Calculate date range
+        // Step 4: Calculate date range
+        step = 'dates';
         const now = new Date();
         let startDate: Date;
         let periodLabel: string;
@@ -34,15 +45,21 @@ export async function GET(request: NextRequest) {
             periodLabel = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
         }
 
-        // Fetch salon info
-        const { data: salon } = await supabase
+        // Step 5: Fetch salon info
+        step = 'fetch_salon';
+        const { data: salon, error: salonError } = await supabase
             .from('salons')
             .select('name, phone, city')
             .eq('id', session.salonId)
             .single();
 
-        // Fetch bills for the period
-        const { data: bills } = await supabase
+        if (salonError) {
+            console.error('[Report Download] Salon fetch error:', salonError);
+        }
+
+        // Step 6: Fetch bills
+        step = 'fetch_bills';
+        const { data: bills, error: billsError } = await supabase
             .from('bills')
             .select(`
                 id,
@@ -57,7 +74,14 @@ export async function GET(request: NextRequest) {
             .gte('created_at', startDate.toISOString())
             .order('created_at', { ascending: false });
 
-        // Fetch staff performance
+        if (billsError) {
+            console.error('[Report Download] Bills fetch error:', billsError);
+        }
+
+        console.log('[Report Download] Fetched', bills?.length || 0, 'bills');
+
+        // Step 7: Fetch staff performance
+        step = 'fetch_staff';
         const billIds = (bills || []).map(b => b.id);
         let staffPerformance: { name: string; services: number; revenue: number }[] = [];
 
@@ -96,12 +120,15 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // Calculate totals
+        // Step 8: Calculate totals
+        step = 'calc_totals';
         const totalRevenue = (bills || []).reduce((sum, b) => sum + (b.final_amount || 0), 0);
         const totalBills = bills?.length || 0;
         const avgTransaction = totalBills > 0 ? totalRevenue / totalBills : 0;
 
-        // Create PDF document
+        // Step 9: Create PDF document
+        step = 'pdf_create';
+        console.log('[Report Download] Creating PDF document...');
         const pdfDoc = await PDFDocument.create();
         const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -109,6 +136,9 @@ export async function GET(request: NextRequest) {
         let page = pdfDoc.addPage([595, 842]); // A4 size
         const { width, height } = page.getSize();
         let yPos = height - 50;
+
+        // Step 10: Draw PDF content
+        step = 'pdf_draw';
 
         // Title
         page.drawText(salon?.name || 'SalonX', {
@@ -160,7 +190,7 @@ export async function GET(request: NextRequest) {
         yPos -= 25;
 
         // Revenue Summary Section
-        page.drawText('📊 Revenue Summary', {
+        page.drawText('Revenue Summary', {
             x: 50,
             y: yPos,
             size: 14,
@@ -180,7 +210,7 @@ export async function GET(request: NextRequest) {
             y: yPos - boxHeight + 15,
             width: boxWidth,
             height: boxHeight,
-            color: rgb(0.31, 0.27, 0.9), // Purple
+            color: rgb(0.31, 0.27, 0.9),
         });
         page.drawText('Total Revenue', {
             x: 60,
@@ -189,7 +219,7 @@ export async function GET(request: NextRequest) {
             font: helveticaFont,
             color: rgb(1, 1, 1),
         });
-        page.drawText(`₹${totalRevenue.toLocaleString('en-IN')}`, {
+        page.drawText(`Rs ${totalRevenue.toLocaleString('en-IN')}`, {
             x: 60,
             y: yPos - 18,
             size: 16,
@@ -203,7 +233,7 @@ export async function GET(request: NextRequest) {
             y: yPos - boxHeight + 15,
             width: boxWidth,
             height: boxHeight,
-            color: rgb(0.06, 0.73, 0.51), // Green
+            color: rgb(0.06, 0.73, 0.51),
         });
         page.drawText('Total Bills', {
             x: 60 + boxWidth + boxGap,
@@ -226,7 +256,7 @@ export async function GET(request: NextRequest) {
             y: yPos - boxHeight + 15,
             width: boxWidth,
             height: boxHeight,
-            color: rgb(0.96, 0.62, 0.04), // Orange
+            color: rgb(0.96, 0.62, 0.04),
         });
         page.drawText('Avg Transaction', {
             x: 60 + (boxWidth + boxGap) * 2,
@@ -235,7 +265,7 @@ export async function GET(request: NextRequest) {
             font: helveticaFont,
             color: rgb(1, 1, 1),
         });
-        page.drawText(`₹${Math.round(avgTransaction).toLocaleString('en-IN')}`, {
+        page.drawText(`Rs ${Math.round(avgTransaction).toLocaleString('en-IN')}`, {
             x: 60 + (boxWidth + boxGap) * 2,
             y: yPos - 18,
             size: 16,
@@ -247,7 +277,7 @@ export async function GET(request: NextRequest) {
 
         // Staff Performance Table
         if (staffPerformance.length > 0) {
-            page.drawText('👥 Staff Performance', {
+            page.drawText('Staff Performance', {
                 x: 50,
                 y: yPos,
                 size: 14,
@@ -296,7 +326,7 @@ export async function GET(request: NextRequest) {
                 xPos += staffColWidths[0];
                 page.drawText(staff.services.toString(), { x: xPos, y: yPos, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
                 xPos += staffColWidths[1];
-                page.drawText(`₹${staff.revenue.toLocaleString('en-IN')}`, { x: xPos, y: yPos, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+                page.drawText(`Rs ${staff.revenue.toLocaleString('en-IN')}`, { x: xPos, y: yPos, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
 
                 yPos -= 18;
             });
@@ -312,7 +342,7 @@ export async function GET(request: NextRequest) {
                 yPos = height - 50;
             }
 
-            page.drawText('🧾 Recent Bills', {
+            page.drawText('Recent Bills', {
                 x: 50,
                 y: yPos,
                 size: 14,
@@ -370,13 +400,14 @@ export async function GET(request: NextRequest) {
                 xPos += billColWidths[2];
                 page.drawText(bill.payment_method.toUpperCase(), { x: xPos, y: yPos, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
                 xPos += billColWidths[3];
-                page.drawText(`₹${(bill.final_amount || 0).toLocaleString('en-IN')}`, { x: xPos, y: yPos, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+                page.drawText(`Rs ${(bill.final_amount || 0).toLocaleString('en-IN')}`, { x: xPos, y: yPos, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
 
                 yPos -= 16;
             });
         }
 
-        // Footer
+        // Step 11: Add footer
+        step = 'pdf_footer';
         const pages = pdfDoc.getPages();
         pages.forEach(p => {
             p.drawText(`Generated on ${new Date().toLocaleString('en-IN')}`, {
@@ -388,10 +419,14 @@ export async function GET(request: NextRequest) {
             });
         });
 
-        // Generate PDF bytes
+        // Step 12: Save PDF
+        step = 'pdf_save';
+        console.log('[Report Download] Saving PDF...');
         const pdfBytes = await pdfDoc.save();
         const pdfBuffer = Buffer.from(pdfBytes);
         const filename = `Report_${periodLabel.replace(/\s+/g, '_')}.pdf`;
+
+        console.log('[Report Download] PDF generated successfully, size:', pdfBuffer.length);
 
         return new NextResponse(pdfBuffer, {
             status: 200,
@@ -402,10 +437,12 @@ export async function GET(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('[Report Download] Error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[Report Download] Error at step '${step}':`, error);
         return NextResponse.json({
-            error: 'Failed to generate report',
-            details: error instanceof Error ? error.message : 'Unknown error'
+            error: `Failed at ${step}: ${errorMessage}`,
+            step: step
         }, { status: 500 });
     }
 }
+
