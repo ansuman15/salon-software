@@ -19,15 +19,14 @@ export const config = {
 
 // Admin/Developer whitelist - these emails can access admin panel
 export const ADMIN_EMAILS = [
-    'admin@salonx.in',
     'developer@salonx.in',
 ];
 
 // Pre-configured admin account for testing (admin panel only)
 export const ADMIN_CREDENTIALS = {
-    email: 'admin@salonx.in',
-    password: 'SalonX@2024',
-    name: 'SalonX Admin',
+    email: 'developer@salonx.in',
+    password: 'SalonX@Admin2024',
+    name: 'SalonX Developer',
 };
 
 // Local storage keys

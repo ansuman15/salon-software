@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
 
         // Check if email is in admin list
         if (!ADMIN_EMAILS.includes(email)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+            return NextResponse.json({ error: 'Unauthorized - email not in admin list' }, { status: 403 });
         }
 
-        // Verify password (check against admin credentials)
+        // Verify password against admin credentials
         if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
             // Create admin session
             const sessionData = {
@@ -33,38 +33,12 @@ export async function POST(request: NextRequest) {
                 createdAt: new Date().toISOString(),
             };
 
-            const cookieStore = cookies();
+            const cookieStore = await cookies();
             cookieStore.set('salonx_session', JSON.stringify(sessionData), {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
                 maxAge: 60 * 60 * 24, // 24 hours
-                path: '/',
-            });
-
-            return NextResponse.json({
-                success: true,
-                message: 'Admin login successful',
-                redirect: '/admin',
-            });
-        }
-
-        // For other admin emails, use a simple password check
-        if (password === 'SalonX@Admin2024') {
-            const sessionData = {
-                salonId: 'admin',
-                salonName: 'SalonX Admin',
-                email: email,
-                isAdmin: true,
-                createdAt: new Date().toISOString(),
-            };
-
-            const cookieStore = cookies();
-            cookieStore.set('salonx_session', JSON.stringify(sessionData), {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 60 * 60 * 24,
                 path: '/',
             });
 
