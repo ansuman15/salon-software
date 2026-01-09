@@ -44,10 +44,13 @@ export async function GET() {
             salonId: s.salon_id,
             name: s.name,
             phone: s.phone,
+            email: s.email,
             role: s.role,
             imageUrl: s.image_url,
             isActive: s.is_active,
             serviceIds: s.service_ids || [],
+            aadhar: s.aadhar,
+            joiningDate: s.joining_date,
             createdAt: s.created_at,
         }));
 
@@ -89,6 +92,9 @@ export async function POST(request: NextRequest) {
                 name: nameResult.value,
                 role: roleResult.value,
                 phone: sanitizeString(body.phone) || null,
+                email: sanitizeString(body.email) || null,
+                aadhar: sanitizeString(body.aadhar) || null,
+                joining_date: body.joiningDate || null,
                 image_url: body.imageUrl || null, // Base64 or URL
                 is_active: true,
                 service_ids: validateStringArray(body.serviceIds),
@@ -107,10 +113,13 @@ export async function POST(request: NextRequest) {
             salonId: staffMember.salon_id,
             name: staffMember.name,
             phone: staffMember.phone,
+            email: staffMember.email,
             role: staffMember.role,
             imageUrl: staffMember.image_url,
             isActive: staffMember.is_active,
             serviceIds: staffMember.service_ids || [],
+            aadhar: staffMember.aadhar,
+            joiningDate: staffMember.joining_date,
             createdAt: staffMember.created_at,
         };
 
@@ -169,6 +178,18 @@ export async function PUT(request: NextRequest) {
             updateData.service_ids = validateStringArray(body.serviceIds);
         }
 
+        if (body.email !== undefined) {
+            updateData.email = sanitizeString(body.email) || null;
+        }
+
+        if (body.aadhar !== undefined) {
+            updateData.aadhar = sanitizeString(body.aadhar) || null;
+        }
+
+        if (body.joiningDate !== undefined) {
+            updateData.joining_date = body.joiningDate || null;
+        }
+
         const { data: staffMember, error } = await supabase
             .from('staff')
             .update(updateData)
@@ -187,10 +208,13 @@ export async function PUT(request: NextRequest) {
             salonId: staffMember.salon_id,
             name: staffMember.name,
             phone: staffMember.phone,
+            email: staffMember.email,
             role: staffMember.role,
             imageUrl: staffMember.image_url,
             isActive: staffMember.is_active,
             serviceIds: staffMember.service_ids || [],
+            aadhar: staffMember.aadhar,
+            joiningDate: staffMember.joining_date,
             createdAt: staffMember.created_at,
         };
 

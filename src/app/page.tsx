@@ -97,10 +97,11 @@ const challenges = [
     "Risk of data loss"
 ];
 
-// Pricing plans
+// Pricing plans with New Year 50% off
 const plans = [
     {
         name: "GO",
+        originalPrice: "999",
         price: "499",
         setup: "Free",
         highlight: "Best Value",
@@ -119,8 +120,9 @@ const plans = [
     },
     {
         name: "Core",
+        originalPrice: "3,999",
         price: "1,999",
-        setup: "3,999",
+        setup: "4,999",
         features: [
             "Everything in GO",
             "Advanced reports",
@@ -133,6 +135,7 @@ const plans = [
     },
     {
         name: "Standard",
+        originalPrice: "9,999",
         price: "4,999",
         setup: "4,999",
         popular: true,
@@ -148,8 +151,9 @@ const plans = [
     },
     {
         name: "Premium",
+        originalPrice: "13,999",
         price: "6,999",
-        setup: "2,999",
+        setup: "4,999",
         features: [
             "Everything in Standard",
             "Multi-branch ready",
@@ -258,6 +262,17 @@ export default function LandingPage() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [openFaq, setOpenFaq] = useState<number | null>(null);
     const [scrolled, setScrolled] = useState(false);
+    const [showDemoModal, setShowDemoModal] = useState(false);
+    const [demoForm, setDemoForm] = useState({
+        name: "",
+        salonName: "",
+        phone: "",
+        email: "",
+        city: "",
+        staffCount: ""
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -267,8 +282,49 @@ export default function LandingPage() {
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
+    const handleDemoSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!demoForm.name || !demoForm.phone || !demoForm.salonName) {
+            alert("Please fill in all required fields");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const res = await fetch('/api/demo-requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(demoForm)
+            });
+
+            if (res.ok) {
+                setSubmitSuccess(true);
+                setDemoForm({ name: "", salonName: "", phone: "", email: "", city: "", staffCount: "" });
+                setTimeout(() => {
+                    setShowDemoModal(false);
+                    setSubmitSuccess(false);
+                }, 3000);
+            } else {
+                alert("Something went wrong. Please try again.");
+            }
+        } catch {
+            alert("Network error. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
     return (
         <div className={styles.page}>
+            {/* Scrolling Offer Banner */}
+            <div className={styles.offerBanner}>
+                <div className={styles.offerContent}>
+                    <span>🎉 MEGA NEW YEAR OFFER - 50% OFF on ALL Plans! Limited Time Only 🎉</span>
+                    <span>🎉 MEGA NEW YEAR OFFER - 50% OFF on ALL Plans! Limited Time Only 🎉</span>
+                    <span>🎉 MEGA NEW YEAR OFFER - 50% OFF on ALL Plans! Limited Time Only 🎉</span>
+                    <span>🎉 MEGA NEW YEAR OFFER - 50% OFF on ALL Plans! Limited Time Only 🎉</span>
+                </div>
+            </div>
+
             {/* Navigation */}
             <nav className={`${styles.nav} ${scrolled ? styles.navScrolled : ""}`}>
                 <div className={styles.navContainer}>
@@ -321,13 +377,13 @@ export default function LandingPage() {
                         simple, secure, cloud-based system designed specifically for modern salons.
                     </p>
                     <div className={styles.heroCta}>
-                        <a href="mailto:support@salonx.in" className={styles.primaryBtn}>
+                        <button onClick={() => setShowDemoModal(true)} className={styles.primaryBtn}>
                             <span>Request a Demo</span>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="5" y1="12" x2="19" y2="12" />
                                 <polyline points="12 5 19 12 12 19" />
                             </svg>
-                        </a>
+                        </button>
                         <a href="#features" className={styles.secondaryBtn}>
                             See Features
                         </a>
@@ -414,6 +470,7 @@ export default function LandingPage() {
                     <span>Bangalore</span>
                     <span>Hyderabad</span>
                     <span>Chennai</span>
+                    <span>Odisha</span>
                 </div>
             </AnimatedSection>
 
@@ -509,6 +566,7 @@ export default function LandingPage() {
             <section id="pricing" className={styles.pricing}>
                 <AnimatedSection>
                     <div className={styles.sectionHeader}>
+                        <div className={styles.offerBadge}>🎉 New Year Special - 50% OFF!</div>
                         <h2>Simple, transparent pricing</h2>
                         <p>Contact us to get started • Professional setup included</p>
                     </div>
@@ -519,11 +577,15 @@ export default function LandingPage() {
                             <div className={`${styles.pricingCard} ${plan.popular ? styles.popular : ""} ${(plan as typeof plan & { highlight?: string }).highlight ? styles.highlight : ""}`}>
                                 {plan.popular && <div className={styles.popularBadge}>Most Popular</div>}
                                 {(plan as typeof plan & { highlight?: string }).highlight && <div className={styles.highlightBadge}>{(plan as typeof plan & { highlight?: string }).highlight}</div>}
+                                <div className={styles.discountBadge}>50% OFF</div>
                                 <h3 className={styles.planName}>{plan.name}</h3>
                                 <div className={styles.planPrice}>
-                                    <span className={styles.currency}>₹</span>
-                                    <span className={styles.amount}>{plan.price}</span>
-                                    <span className={styles.period}>/month</span>
+                                    <span className={styles.originalPrice}>₹{plan.originalPrice}</span>
+                                    <div className={styles.currentPrice}>
+                                        <span className={styles.currency}>₹</span>
+                                        <span className={styles.amount}>{plan.price}</span>
+                                        <span className={styles.period}>/month</span>
+                                    </div>
                                 </div>
                                 <p className={styles.setupFee}>
                                     {plan.setup === "Free" ? "✨ Free setup" : `One-time setup: ₹${plan.setup}`}
@@ -539,9 +601,9 @@ export default function LandingPage() {
                                         </li>
                                     ))}
                                 </ul>
-                                <a href={`mailto:support@salonx.in?subject=Interest in ${plan.name} Plan`} className={styles.planBtn}>
-                                    {plan.name === "GO" ? "Start Free" : "Get Quote"}
-                                </a>
+                                <button onClick={() => setShowDemoModal(true)} className={styles.planBtn}>
+                                    {plan.name === "GO" ? "Get Started" : "Get Quote"}
+                                </button>
                             </div>
                         </AnimatedSection>
                     ))}
@@ -614,13 +676,13 @@ export default function LandingPage() {
             <AnimatedSection className={styles.finalCta}>
                 <h2>Ready to transform your salon?</h2>
                 <p>Join 500+ salons already using SalonX to streamline operations</p>
-                <a href="mailto:support@salonx.in" className={styles.primaryBtn}>
+                <button onClick={() => setShowDemoModal(true)} className={styles.primaryBtn}>
                     <span>Request a Demo</span>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <line x1="5" y1="12" x2="19" y2="12" />
                         <polyline points="12 5 19 12 12 19" />
                     </svg>
-                </a>
+                </button>
             </AnimatedSection>
 
             {/* Footer */}
@@ -657,6 +719,97 @@ export default function LandingPage() {
                     <p>© 2024 SalonX. All rights reserved.</p>
                 </div>
             </footer>
+
+            {/* Demo Request Modal */}
+            {showDemoModal && (
+                <div className={styles.modalOverlay} onClick={() => setShowDemoModal(false)}>
+                    <div className={styles.demoModal} onClick={e => e.stopPropagation()}>
+                        <button className={styles.modalClose} onClick={() => setShowDemoModal(false)}>✕</button>
+                        {submitSuccess ? (
+                            <div className={styles.successMessage}>
+                                <div className={styles.successIcon}>✓</div>
+                                <h3>Thank You!</h3>
+                                <p>Our team will contact you within 24 hours.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <h3>Request a Demo</h3>
+                                <p>Fill in your details and we'll get back to you within 24 hours</p>
+                                <form onSubmit={handleDemoSubmit} className={styles.demoForm}>
+                                    <div className={styles.formGroup}>
+                                        <label>Your Name *</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter your name"
+                                            value={demoForm.name}
+                                            onChange={e => setDemoForm({ ...demoForm, name: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label>Salon Name *</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter salon name"
+                                            value={demoForm.salonName}
+                                            onChange={e => setDemoForm({ ...demoForm, salonName: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.formGroup}>
+                                            <label>Phone Number *</label>
+                                            <input
+                                                type="tel"
+                                                placeholder="10 digit number"
+                                                value={demoForm.phone}
+                                                onChange={e => setDemoForm({ ...demoForm, phone: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Email (Optional)</label>
+                                            <input
+                                                type="email"
+                                                placeholder="your@email.com"
+                                                value={demoForm.email}
+                                                onChange={e => setDemoForm({ ...demoForm, email: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.formGroup}>
+                                            <label>City</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Your city"
+                                                value={demoForm.city}
+                                                onChange={e => setDemoForm({ ...demoForm, city: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Staff Count</label>
+                                            <select
+                                                value={demoForm.staffCount}
+                                                onChange={e => setDemoForm({ ...demoForm, staffCount: e.target.value })}
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="1-3">1-3</option>
+                                                <option value="4-10">4-10</option>
+                                                <option value="11-20">11-20</option>
+                                                <option value="20+">20+</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+                                        {isSubmitting ? "Submitting..." : "Request Demo"}
+                                    </button>
+                                </form>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

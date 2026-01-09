@@ -22,7 +22,7 @@
   --bg-tertiary: #EDE6DD;
   --bg-card: #FFFFFF;
   --bg-sidebar: #2D2A26;
-  
+
   /* Accent Colors - Rose, Champagne, Lavender */
   --accent-rose: #D4A5A5;
   --accent-rose-light: #E8C4C4;
@@ -32,13 +32,13 @@
   --accent-sage: #B8C4B8;
   --accent-peach: #F5C6A5;
   --accent-cream: #F7F0E3;
-  
+
   /* Text Colors */
   --text-primary: #2D2A26;
   --text-secondary: #6B6560;
   --text-muted: #9A948E;
   --text-inverse: #FFFFFF;
-  
+
   /* Status Colors */
   --success: #7CB07C;
   --success-light: #E8F5E8;
@@ -48,22 +48,22 @@
   --error-light: #FFF0F0;
   --info: #7BA3C4;
   --info-light: #F0F5F9;
-  
+
   /* Borders */
   --border-light: #E8E4DF;
   --border-medium: #D4CEC6;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(45, 42, 38, 0.05);
   --shadow-md: 0 4px 12px rgba(45, 42, 38, 0.08);
   --shadow-lg: 0 8px 24px rgba(45, 42, 38, 0.12);
   --shadow-card: 0 2px 8px rgba(45, 42, 38, 0.06);
   --shadow-hover: 0 8px 20px rgba(45, 42, 38, 0.15);
-  
+
   /* Typography */
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Poppins', var(--font-primary);
-  
+
   /* Font Sizes */
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -73,13 +73,13 @@
   --text-2xl: 1.5rem;
   --text-3xl: 2rem;
   --text-4xl: 2.5rem;
-  
+
   /* Font Weights */
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
-  
+
   /* Spacing */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -91,7 +91,7 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
-  
+
   /* Border Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -99,12 +99,12 @@
   --radius-xl: 16px;
   --radius-2xl: 24px;
   --radius-full: 9999px;
-  
+
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
   --transition-slow: 350ms ease;
-  
+
   /* Layout */
   --sidebar-width: 260px;
   --header-height: 64px;
@@ -130,19 +130,41 @@ body {
 /* ============================================
    Typography
    ============================================ */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
   font-weight: var(--font-semibold);
   line-height: 1.3;
   color: var(--text-primary);
 }
 
-h1 { font-size: var(--text-4xl); }
-h2 { font-size: var(--text-3xl); }
-h3 { font-size: var(--text-2xl); }
-h4 { font-size: var(--text-xl); }
-h5 { font-size: var(--text-lg); }
-h6 { font-size: var(--text-base); }
+h1 {
+  font-size: var(--text-4xl);
+}
+
+h2 {
+  font-size: var(--text-3xl);
+}
+
+h3 {
+  font-size: var(--text-2xl);
+}
+
+h4 {
+  font-size: var(--text-xl);
+}
+
+h5 {
+  font-size: var(--text-lg);
+}
+
+h6 {
+  font-size: var(--text-base);
+}
 
 p {
   color: var(--text-secondary);
@@ -157,15 +179,37 @@ a {
 /* ============================================
    Utility Classes
    ============================================ */
-.text-muted { color: var(--text-muted); }
-.text-secondary { color: var(--text-secondary); }
-.text-success { color: var(--success); }
-.text-warning { color: var(--warning); }
-.text-error { color: var(--error); }
+.text-muted {
+  color: var(--text-muted);
+}
 
-.font-medium { font-weight: var(--font-medium); }
-.font-semibold { font-weight: var(--font-semibold); }
-.font-bold { font-weight: var(--font-bold); }
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-success {
+  color: var(--success);
+}
+
+.text-warning {
+  color: var(--warning);
+}
+
+.text-error {
+  color: var(--error);
+}
+
+.font-medium {
+  font-weight: var(--font-medium);
+}
+
+.font-semibold {
+  font-weight: var(--font-semibold);
+}
+
+.font-bold {
+  font-weight: var(--font-bold);
+}
 
 /* ============================================
    Button Styles
@@ -464,8 +508,13 @@ a {
 }
 
 @keyframes skeleton-loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .spinner {
@@ -478,7 +527,9 @@ a {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ============================================
@@ -509,8 +560,13 @@ a {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
@@ -518,6 +574,7 @@ a {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -531,7 +588,7 @@ a {
   :root {
     --sidebar-width: 0px;
   }
-  
+
   .hide-mobile {
     display: none !important;
   }
@@ -540,5 +597,295 @@ a {
 @media (min-width: 769px) {
   .hide-desktop {
     display: none !important;
+  }
+}
+
+/* ============================================
+   Enhanced UX - Smoother & Faster Experience
+   ============================================ */
+
+/* Faster, smoother transitions for all interactive elements */
+button,
+a,
+input,
+select,
+textarea,
+.card,
+.btn {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Instant visual feedback on click */
+button:active:not(:disabled),
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 0.05s ease;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Toast notification animations */
+.toast {
+  animation: toastIn 0.25s ease-out forwards;
+}
+
+.toast-exit {
+  animation: toastOut 0.2s ease-in forwards;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* Optimistic loading state - subtle pulse */
+.optimistic-loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.optimistic-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.5);
+  animation: optimisticPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes optimisticPulse {
+  from {
+    opacity: 0.3;
+  }
+
+  to {
+    opacity: 0.6;
+  }
+}
+
+/* Faster spinner for quick operations */
+.spinner-fast {
+  animation: spin 0.5s linear infinite;
+}
+
+/* Subtle hover lift effect */
+.hover-lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Button loading state */
+.btn-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  top: 50%;
+  left: 50%;
+  margin-top: -9px;
+  margin-left: -9px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Smooth data list updates */
+.list-item {
+  transition: opacity 0.2s ease, transform 0.2s ease, background 0.15s ease;
+}
+
+.list-item-enter {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+.list-item-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.list-item-exit {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+/* Instant form validation feedback */
+.input-valid {
+  border-color: var(--success) !important;
+  background-color: var(--success-light) !important;
+}
+
+.input-error {
+  border-color: var(--error) !important;
+  background-color: var(--error-light) !important;
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* Success checkmark animation */
+.success-check {
+  animation: checkPop 0.3s ease-out forwards;
+}
+
+@keyframes checkPop {
+  0% {
+    transform: scale(0);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Ripple effect on buttons */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.btn-ripple:active::before {
+  transform: scale(2);
+  opacity: 1;
+  transition: transform 0s, opacity 0s;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus visible only for keyboard navigation */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+/* Prevent layout shift on loading */
+.skeleton-container {
+  min-height: 100px;
+}
+
+/* Faster modal transitions */
+.modal-fast .modal-overlay {
+  animation-duration: 0.15s;
+}
+
+.modal-fast .modal {
+  animation-duration: 0.2s;
+}
+
+/* Quick action button feedback */
+.quick-action {
+  transition: all 0.12s ease;
+}
+
+.quick-action:hover {
+  transform: scale(1.02);
+}
+
+.quick-action:active {
+  transform: scale(0.98);
+}
+
+/* Progress indicator */
+.progress-bar {
+  height: 3px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-rose), var(--accent-champagne));
+  transition: width 0.3s ease;
+}
+
+/* Indeterminate progress */
+.progress-bar-indeterminate .progress-bar-fill {
+  width: 30%;
+  animation: indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(400%);
   }
 }
